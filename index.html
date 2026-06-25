@@ -355,6 +355,80 @@ nav{
   text-align:center;padding:10px;
   font-size:11px;color:var(--muted);letter-spacing:.3px;
 }
+
+/* ── PLAN CARD ── */
+.plan-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px;margin-bottom:10px;
+}
+.plan-header{
+  display:flex;justify-content:space-between;align-items:baseline;
+  margin-bottom:10px;
+}
+.plan-title{
+  font-family:var(--font-d);font-size:11px;font-weight:600;
+  letter-spacing:1px;text-transform:uppercase;color:var(--muted);
+}
+.plan-pct{
+  font-family:var(--font-d);font-size:22px;font-weight:700;
+}
+.plan-pct.done{color:var(--green)}
+.plan-pct.warn{color:var(--amber)}
+.plan-pct.low{color:var(--red)}
+.plan-track{
+  height:6px;border-radius:3px;background:var(--border);
+  margin-bottom:10px;overflow:hidden;
+}
+.plan-fill{
+  height:100%;border-radius:3px;
+  transition:width .4s ease;
+}
+.plan-fill.done{background:var(--green)}
+.plan-fill.warn{background:var(--amber)}
+.plan-fill.low{background:var(--red)}
+.plan-row{
+  display:flex;justify-content:space-between;font-size:12px;
+  color:var(--muted2);
+}
+.plan-row b{color:var(--text);font-weight:600}
+.plan-left{
+  margin-top:8px;font-size:11px;font-weight:600;text-align:center;
+  padding:5px;border-radius:6px;
+}
+.plan-left.done{background:rgba(29,185,84,.1);color:var(--green)}
+.plan-left.warn{background:rgba(245,158,11,.1);color:var(--amber)}
+.plan-left.low{background:var(--red-dim);color:var(--red)}
+
+/* ── TOP EMPLOYEES ── */
+.top-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px;margin-bottom:10px;
+}
+.top-title{
+  font-family:var(--font-d);font-size:11px;font-weight:600;
+  letter-spacing:1px;text-transform:uppercase;color:var(--muted);
+  margin-bottom:10px;
+}
+.top-row{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 0;border-bottom:1px solid var(--border);
+}
+.top-row:last-child{border-bottom:none}
+.top-medal{font-size:18px;width:26px;text-align:center;flex-shrink:0}
+.top-num{
+  font-family:var(--font-d);font-size:13px;color:var(--muted);
+  width:26px;text-align:center;flex-shrink:0;
+}
+.top-name{flex:1;font-size:13px;font-weight:500}
+.top-val{
+  font-family:var(--font-d);font-size:15px;font-weight:700;
+  color:var(--text);
+}
+.top-bar-wrap{
+  height:3px;background:var(--border);border-radius:2px;
+  margin-top:4px;overflow:hidden;
+}
+.top-bar-fill{height:100%;border-radius:2px;background:var(--red)}
 </style>
 </head>
 <body>
@@ -718,15 +792,23 @@ async function switchMonth(m) {
   document.querySelectorAll('.mt').forEach(t => t.classList.toggle('active', t.dataset.m === m));
   const rEl = $('fin-reports');
   const sEl = $('fin-summary');
+  const pEl = $('fin-plan');
+  const tEl = $('fin-top');
   rEl.innerHTML = '<div class="loader"><div class="spin"></div></div>';
   sEl.innerHTML = '';
+  if (pEl) pEl.innerHTML = '';
+  if (tEl) tEl.innerHTML = '';
 
-  const [reports, summary] = await Promise.all([
+  const [reports, summary, plan, top] = await Promise.all([
     req(`/api/finance/reports?month=${m}&limit=30`).then(d => d.reports),
-    req(`/api/finance/month/${m}`)
+    req(`/api/finance/month/${m}`),
+    req(`/api/plan?month=${m}`).catch(() => null),
+    req(`/api/top?month=${m}`).catch(() => null),
   ]);
 
   sEl.innerHTML = renderMonthSummary(m, summary);
+  if (pEl && plan) pEl.innerHTML = renderPlan(plan);
+  if (tEl && top)  tEl.innerHTML = renderTop(top);
   rEl.innerHTML = reports.map(reportCard).join('') ||
     '<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">Нет отчётов</div></div>';
 }
@@ -770,12 +852,22 @@ function renderFin(reports, months) {
   ).join('');
   $('fin-c').innerHTML = `
     <div class="mt-wrap">${tabs}</div>
+    <div id="fin-plan"></div>
     <div id="fin-summary"></div>
+    <div id="fin-top"></div>
     <div class="sh">Отчёты</div>
     <div id="fin-reports">${reports.map(reportCard).join('')}</div>`;
-  if (months[0]) req(`/api/finance/month/${months[0]}`).then(s => {
-    $('fin-summary').innerHTML = renderMonthSummary(months[0], s);
-  });
+  if (months[0]) {
+    Promise.all([
+      req(`/api/finance/month/${months[0]}`),
+      req(`/api/plan?month=${months[0]}`).catch(() => null),
+      req(`/api/top?month=${months[0]}`).catch(() => null),
+    ]).then(([s, plan, top]) => {
+      $('fin-summary').innerHTML = renderMonthSummary(months[0], s);
+      if (plan) $('fin-plan').innerHTML = renderPlan(plan);
+      if (top)  $('fin-top').innerHTML  = renderTop(top);
+    });
+  }
 }
 
 function openReport(r) {
@@ -798,6 +890,64 @@ function openReport(r) {
     <div class="fr"><span class="fl">Закрыл</span><span class="fv" style="font-weight:500">${r.closed_by||'—'}</span></div>
     <div class="fr"><span class="fl">Приняли</span><span class="fv" style="font-weight:500">${r.accepted_by||'—'}</span></div>`;
   openSheet('rep-ov');
+}
+
+function renderPlan(p) {
+  if (!p || !p.plan) return '';
+  const pct    = Math.min(p.pct ?? 0, 100);
+  const over   = (p.pct ?? 0) > 100;
+  const cls    = over || pct >= 100 ? 'done' : pct >= 70 ? 'warn' : 'low';
+  const left   = p.plan - p.total;
+  const leftTxt = left > 0
+    ? `До плана: <b>${money(left)}</b>`
+    : '✅ План выполнен!';
+  return `<div class="plan-card">
+    <div class="plan-header">
+      <span class="plan-title">🎯 План на месяц</span>
+      <span class="plan-pct ${cls}">${p.pct ?? 0}%</span>
+    </div>
+    <div class="plan-track">
+      <div class="plan-fill ${cls}" style="width:${Math.min(p.pct??0,100)}%"></div>
+    </div>
+    <div class="plan-row">
+      <span>Факт: <b>${money(p.total)}</b></span>
+      <span>План: <b>${money(p.plan)}</b></span>
+    </div>
+    <div class="plan-left ${cls}">${leftTxt}</div>
+  </div>`;
+}
+
+function renderTop(t) {
+  if (!t || (!t.by_total.length && !t.by_bar.length)) return '';
+  const medals = ['🥇','🥈','🥉'];
+  const maxTotal = t.by_total[0]?.value || 1;
+  const maxBar   = t.by_bar[0]?.value   || 1;
+
+  function rows(list, maxVal) {
+    return list.map((e, i) => {
+      const pct = Math.round(e.value / maxVal * 100);
+      const icon = i < 3 ? `<span class="top-medal">${medals[i]}</span>`
+                          : `<span class="top-num">${i+1}</span>`;
+      return `<div class="top-row">
+        ${icon}
+        <div class="top-name">
+          ${e.name}
+          <div class="top-bar-wrap"><div class="top-bar-fill" style="width:${pct}%"></div></div>
+        </div>
+        <div class="top-val">${money(e.value)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  return `
+    <div class="top-card">
+      <div class="top-title">💰 Топ по выручке</div>
+      ${rows(t.by_total, maxTotal)}
+    </div>
+    <div class="top-card">
+      <div class="top-title">🍺 Топ по бару</div>
+      ${rows(t.by_bar, maxBar)}
+    </div>`;
 }
 
 // ── TOBACCO ──────────────────────────────────────────────────────

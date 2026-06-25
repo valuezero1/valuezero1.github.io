@@ -114,6 +114,19 @@ def init_db():
         """
     )
 
+    # Планы выручки по месяцам: month = 'YYYY-MM'
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS monthly_plans(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            month TEXT UNIQUE,
+            plan INTEGER,
+            set_by INTEGER,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
     _ensure_column("tobacco", "category", "TEXT")
     conn.commit()
 
@@ -127,3 +140,24 @@ def is_employee(tg_id: int) -> bool:
         (tg_id,),
     )
     return cursor.fetchone() is not None
+
+
+def get_plan(month: str) -> int | None:
+    """Возвращает план выручки для указанного месяца (YYYY-MM) или None."""
+    cursor.execute("SELECT plan FROM monthly_plans WHERE month=?", (month,))
+    row = cursor.fetchone()
+    return row[0] if row else None
+
+
+def set_plan(month: str, plan: int, admin_tg_id: int) -> None:
+    """Устанавливает или обновляет план выручки для месяца."""
+    cursor.execute(
+        """
+        INSERT INTO monthly_plans(month, plan, set_by)
+        VALUES (?, ?, ?)
+        ON CONFLICT(month) DO UPDATE SET plan=excluded.plan, set_by=excluded.set_by,
+            created_at=CURRENT_TIMESTAMP
+        """,
+        (month, plan, admin_tg_id),
+    )
+    conn.commit()
