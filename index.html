@@ -3,403 +3,436 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Hookah CRM</title>
+<title>RAVE CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  /* ── TOKENS ─────────────────────────────────────────────────── */
-  :root {
-    --bg:       #0e0e0f;
-    --bg-card:  #18181b;
-    --bg-hover: #222226;
-    --border:   #2a2a2e;
-    --amber:    #f59e0b;
-    --amber-dim:#78490a;
-    --ember:    #ef4444;
-    --smoke:    #6b7280;
-    --text:     #f4f4f5;
-    --text-muted: #9ca3af;
-    --green:    #22c55e;
-    --blue:     #3b82f6;
-    --radius:   12px;
-    --nav-h:    64px;
-    --safe-b:   env(safe-area-inset-bottom, 0px);
-  }
+:root {
+  --bg:        #0a0a0a;
+  --surface:   #111113;
+  --card:      #16161a;
+  --card2:     #1c1c21;
+  --border:    #252529;
+  --red:       #e8112d;
+  --red-hot:   #ff1f3d;
+  --red-dim:   #2a0a0e;
+  --red-glow:  rgba(232,17,45,.18);
+  --text:      #f0f0f0;
+  --muted:     #55555f;
+  --muted2:    #88889a;
+  --green:     #1db954;
+  --blue:      #4a9eff;
+  --amber:     #f59e0b;
+  --nav-h:     62px;
+  --safe:      env(safe-area-inset-bottom, 0px);
+  --r:         10px;
+  --font-d:    'Oswald', sans-serif;
+  --font-b:    'Inter', sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body{
+  font-family:var(--font-b);
+  background:var(--bg);
+  color:var(--text);
+  min-height:100dvh;
+  overscroll-behavior:none;
+}
 
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100dvh;
-    overscroll-behavior: none;
-  }
+/* ── LAYOUT ── */
+#app{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
 
-  /* ── LAYOUT ─────────────────────────────────────────────────── */
-  #app { display: flex; flex-direction: column; height: 100dvh; }
+.page{
+  flex:1;overflow-y:auto;
+  padding:16px 14px calc(var(--nav-h) + var(--safe) + 16px);
+  display:none;opacity:0;
+  transform:translateY(8px);
+  transition:opacity .2s ease,transform .2s ease;
+}
+.page.active{display:block}
+.page.visible{opacity:1;transform:translateY(0)}
 
-  .page {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px 16px calc(var(--nav-h) + var(--safe-b) + 16px);
-    display: none;
-  }
-  .page.active { display: block; }
+/* ── NAV ── */
+nav{
+  position:fixed;bottom:0;left:0;right:0;
+  height:calc(var(--nav-h) + var(--safe));
+  padding-bottom:var(--safe);
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  display:flex;z-index:100;
+}
+.nb{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;background:none;border:none;
+  color:var(--muted);font-family:var(--font-b);font-size:9px;
+  font-weight:500;letter-spacing:.4px;text-transform:uppercase;
+  cursor:pointer;transition:color .15s;padding:6px 0;
+  position:relative;
+}
+.nb svg{width:20px;height:20px;transition:transform .2s}
+.nb.active{color:var(--red)}
+.nb.active svg{transform:scale(1.1)}
+.nb.active::after{
+  content:'';position:absolute;bottom:0;left:50%;
+  transform:translateX(-50%);
+  width:28px;height:2px;background:var(--red);
+  border-radius:2px 2px 0 0;
+}
 
-  /* ── NAV ─────────────────────────────────────────────────────── */
-  nav {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    height: calc(var(--nav-h) + var(--safe-b));
-    padding-bottom: var(--safe-b);
-    background: var(--bg-card);
-    border-top: 1px solid var(--border);
-    display: flex;
-    z-index: 100;
-  }
+/* ── SECTION HEADER ── */
+.sh{
+  font-family:var(--font-d);font-size:11px;font-weight:600;
+  letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--muted);margin:20px 0 10px;
+  display:flex;align-items:center;gap:8px;
+}
+.sh::after{content:'';flex:1;height:1px;background:var(--border)}
 
-  .nav-btn {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    background: none;
-    border: none;
-    color: var(--smoke);
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: .3px;
-    cursor: pointer;
-    transition: color .15s;
-    padding: 8px 0;
-  }
-  .nav-btn svg { width: 22px; height: 22px; }
-  .nav-btn.active { color: var(--amber); }
+/* ── STAT GRID ── */
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.sc{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px 14px 12px;
+  position:relative;overflow:hidden;
+}
+.sc::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--border);
+}
+.sc.red::before{background:var(--red)}
+.sc.green::before{background:var(--green)}
+.sc-label{font-size:10px;color:var(--muted2);letter-spacing:.3px;margin-bottom:6px}
+.sc-val{
+  font-family:var(--font-d);font-size:28px;font-weight:700;
+  line-height:1;color:var(--text);
+}
+.sc-val.red{color:var(--red)}
+.sc-val.green{color:var(--green)}
+.sc-val.amber{color:var(--amber)}
 
-  /* ── CARDS ───────────────────────────────────────────────────── */
-  .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px;
-    margin-bottom: 12px;
-  }
+/* ── SHIFT BAR ── */
+.shift-bar{
+  border-radius:var(--r);padding:13px 14px;
+  margin-bottom:12px;display:flex;align-items:center;gap:10px;
+  border:1px solid;
+}
+.shift-bar.on{
+  background:rgba(29,185,84,.07);border-color:rgba(29,185,84,.25);
+}
+.shift-bar.off{
+  background:rgba(232,17,45,.06);border-color:rgba(232,17,45,.2);
+}
+.sdot{
+  width:9px;height:9px;border-radius:50%;flex-shrink:0;
+}
+.shift-bar.on .sdot{
+  background:var(--green);
+  box-shadow:0 0 0 3px rgba(29,185,84,.2);
+  animation:pulse 2s ease-in-out infinite;
+}
+.shift-bar.off .sdot{background:var(--muted)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 3px rgba(29,185,84,.2)}50%{box-shadow:0 0 0 6px rgba(29,185,84,.05)}}
+.shift-label{font-size:13px;font-weight:600}
+.shift-sub{font-size:11px;color:var(--muted2);margin-top:1px}
 
-  .card-title {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: .8px;
-    text-transform: uppercase;
-    color: var(--smoke);
-    margin-bottom: 12px;
-  }
+/* ── CARD ── */
+.card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px;margin-bottom:10px;
+}
+.card-title{
+  font-family:var(--font-d);font-size:11px;font-weight:600;
+  letter-spacing:1px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:12px;
+}
 
-  /* ── STAT GRID ───────────────────────────────────────────────── */
-  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-  .stat-cell {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px;
-  }
-  .stat-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-  .stat-value { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1; }
-  .stat-value.amber { color: var(--amber); }
-  .stat-value.green { color: var(--green); }
-  .stat-value.red   { color: var(--ember); }
+/* ── FIN ROW ── */
+.fr{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;
+}
+.fr:last-child{border-bottom:none}
+.fr .fl{color:var(--muted2)}
+.fr .fv{font-weight:600;font-variant-numeric:tabular-nums}
+.fr .fv.pos{color:var(--green)}
+.fr .fv.neg{color:var(--red)}
 
-  /* ── SECTION TITLE ───────────────────────────────────────────── */
-  .section-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-muted);
-    margin: 20px 0 10px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .section-title::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
+/* ── ORDER CARD ── */
+.oc{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:0;margin-bottom:10px;
+  overflow:hidden;position:relative;
+}
+.oc-accent{
+  position:absolute;top:0;left:0;bottom:0;width:3px;
+  background:var(--red);
+}
+.oc-body{padding:13px 13px 13px 18px}
+.oc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
+.oc-zone{font-family:var(--font-d);font-size:18px;font-weight:600;letter-spacing:.5px}
+.oc-id{font-size:11px;color:var(--muted);margin-top:2px}
+.oc-flavor{font-size:13px;color:var(--muted2);margin-bottom:10px}
+.oc-footer{
+  display:flex;justify-content:space-between;align-items:center;
+  padding-top:10px;border-top:1px solid var(--border);
+}
+.oc-emp{font-size:12px;color:var(--muted2);display:flex;align-items:center;gap:5px}
+.oc-time{font-size:11px;color:var(--muted)}
 
-  /* ── FINANCE ROW ─────────────────────────────────────────────── */
-  .fin-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 9px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 14px;
-  }
-  .fin-row:last-child { border-bottom: none; }
-  .fin-row .label { color: var(--text-muted); }
-  .fin-row .val { font-weight: 600; font-variant-numeric: tabular-nums; }
-  .fin-row .val.pos { color: var(--green); }
-  .fin-row .val.neg { color: var(--ember); }
+/* ── TIMER ── */
+.timer-wrap{
+  background:var(--red-dim);border:1px solid rgba(232,17,45,.3);
+  border-radius:8px;padding:8px 12px;
+  display:flex;align-items:center;justify-content:space-between;
+  margin-top:10px;
+}
+.timer-label{font-size:11px;color:rgba(232,17,45,.8);text-transform:uppercase;letter-spacing:.5px}
+.timer-val{
+  font-family:var(--font-d);font-size:22px;font-weight:700;
+  color:var(--red-hot);letter-spacing:1px;
+}
+.timer-stage{font-size:10px;color:var(--muted2);margin-top:1px}
 
-  /* ── REPORT CARD ─────────────────────────────────────────────── */
-  .report-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    transition: background .15s;
-  }
-  .report-card:active { background: var(--bg-hover); }
-  .report-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-  .report-date { font-size: 13px; font-weight: 600; color: var(--text); }
-  .badge {
-    font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
-    padding: 2px 7px; border-radius: 20px;
-  }
-  .badge-day  { background: rgba(245,158,11,.15); color: var(--amber); }
-  .badge-night{ background: rgba(59,130,246,.15);  color: var(--blue); }
-  .badge-open { background: rgba(34,197,94,.15);  color: var(--green); }
-  .report-emp { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
-  .report-total { font-size: 18px; font-weight: 700; color: var(--amber); }
+/* ── CLOSE BTN ── */
+.btn-close{
+  background:rgba(232,17,45,.12);border:1px solid rgba(232,17,45,.3);
+  color:var(--red);border-radius:8px;padding:6px 12px;
+  font-family:var(--font-b);font-size:12px;font-weight:600;
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.btn-close:active{background:rgba(232,17,45,.25)}
 
-  /* ── MONTH TABS ──────────────────────────────────────────────── */
-  .month-tabs {
-    display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; margin-bottom: 16px;
-    scrollbar-width: none;
-  }
-  .month-tabs::-webkit-scrollbar { display: none; }
-  .month-tab {
-    flex-shrink: 0;
-    padding: 6px 14px;
-    border-radius: 20px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    color: var(--text-muted);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all .15s;
-  }
-  .month-tab.active { background: var(--amber); border-color: var(--amber); color: #000; font-weight: 700; }
+/* ── REPORT CARD ── */
+.rc{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:14px;margin-bottom:8px;
+  cursor:pointer;transition:background .15s;
+  display:flex;align-items:center;gap:12px;
+}
+.rc:active{background:var(--card2)}
+.rc-left{flex:1;min-width:0}
+.rc-top{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.rc-date{font-family:var(--font-d);font-size:15px;font-weight:600;letter-spacing:.3px}
+.rc-emp{font-size:12px;color:var(--muted2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc-total{
+  font-family:var(--font-d);font-size:20px;font-weight:700;
+  color:var(--text);flex-shrink:0;text-align:right;
+}
+.rc-arr{color:var(--muted);font-size:16px;flex-shrink:0}
 
-  /* ── MODAL ───────────────────────────────────────────────────── */
-  .overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,.7);
-    z-index: 200; display: none; align-items: flex-end;
-  }
-  .overlay.open { display: flex; }
-  .sheet {
-    background: var(--bg-card);
-    border-radius: 20px 20px 0 0;
-    padding: 20px 20px calc(20px + var(--safe-b));
-    width: 100%;
-    max-height: 85dvh;
-    overflow-y: auto;
-  }
-  .sheet-handle {
-    width: 36px; height: 4px; border-radius: 2px;
-    background: var(--border); margin: 0 auto 16px;
-  }
-  .sheet-title { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+/* ── BADGE ── */
+.badge{
+  font-size:9px;font-weight:700;letter-spacing:.6px;
+  text-transform:uppercase;padding:2px 7px;border-radius:3px;
+}
+.bd{background:rgba(245,158,11,.15);color:var(--amber)}
+.bn{background:rgba(74,158,255,.15);color:var(--blue)}
+.bg{background:rgba(29,185,84,.15);color:var(--green)}
+.br{background:rgba(232,17,45,.15);color:var(--red)}
 
-  /* ── ORDER ITEM ──────────────────────────────────────────────── */
-  .order-item {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px;
-    margin-bottom: 10px;
-  }
-  .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-  .order-id { font-size: 12px; color: var(--smoke); }
-  .order-zone { font-size: 15px; font-weight: 700; }
-  .order-detail { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
-  .order-emp {
-    display: flex; align-items: center; gap: 6px;
-    margin-top: 10px; padding-top: 10px;
-    border-top: 1px solid var(--border);
-    font-size: 13px; color: var(--text-muted);
-  }
+/* ── MONTH TABS ── */
+.mt-wrap{
+  display:flex;gap:6px;overflow-x:auto;margin-bottom:14px;
+  padding-bottom:2px;scrollbar-width:none;
+}
+.mt-wrap::-webkit-scrollbar{display:none}
+.mt{
+  flex-shrink:0;padding:5px 14px;border-radius:4px;
+  background:var(--card);border:1px solid var(--border);
+  color:var(--muted2);font-size:12px;font-weight:500;cursor:pointer;
+  transition:all .15s;font-family:var(--font-b);
+}
+.mt.active{
+  background:var(--red);border-color:var(--red);
+  color:#fff;font-weight:700;
+}
 
-  /* ── EMPLOYEE CARD ───────────────────────────────────────────── */
-  .emp-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 14px;
-    margin-bottom: 10px;
-    display: flex; align-items: center; gap: 12px;
-  }
-  .emp-avatar {
-    width: 40px; height: 40px; border-radius: 50%;
-    background: var(--amber-dim);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px; font-weight: 700; color: var(--amber);
-    flex-shrink: 0;
-  }
-  .emp-name { font-size: 15px; font-weight: 600; }
-  .emp-stats { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+/* ── MONTH SUMMARY ── */
+.ms-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px}
+.ms-cell{
+  background:var(--bg);border:1px solid var(--border);
+  border-radius:8px;padding:11px;
+}
+.ms-label{font-size:10px;color:var(--muted2);margin-bottom:4px}
+.ms-val{font-family:var(--font-d);font-size:18px;font-weight:700}
 
-  /* ── TOBACCO ─────────────────────────────────────────────────── */
-  .tobacco-cat {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    margin-bottom: 10px;
-    overflow: hidden;
-  }
-  .tobacco-cat-header {
-    padding: 12px 14px;
-    display: flex; justify-content: space-between; align-items: center;
-    cursor: pointer;
-  }
-  .tobacco-cat-title { font-size: 14px; font-weight: 600; }
-  .tobacco-cat-count {
-    font-size: 12px; font-weight: 600;
-    background: var(--amber-dim); color: var(--amber);
-    padding: 2px 8px; border-radius: 10px;
-  }
-  .tobacco-list { border-top: 1px solid var(--border); }
-  .tobacco-item {
-    padding: 10px 14px;
-    font-size: 14px;
-    border-bottom: 1px solid var(--border);
-    display: flex; justify-content: space-between; align-items: center;
-  }
-  .tobacco-item:last-child { border-bottom: none; }
+/* ── EMPLOYEE ── */
+.emp-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);padding:13px;margin-bottom:8px;
+  display:flex;align-items:center;gap:12px;cursor:pointer;
+  transition:background .15s;
+}
+.emp-card:active{background:var(--card2)}
+.emp-av{
+  width:38px;height:38px;border-radius:50%;
+  background:var(--red-dim);border:1px solid rgba(232,17,45,.3);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-d);font-size:16px;font-weight:700;
+  color:var(--red);flex-shrink:0;
+}
+.emp-name{font-size:14px;font-weight:600}
+.emp-stats{font-size:11px;color:var(--muted2);margin-top:2px}
+.emp-badge{
+  margin-left:auto;font-family:var(--font-d);font-size:20px;
+  font-weight:700;color:var(--text);
+}
 
-  /* ── SHIFT STATUS BAR ────────────────────────────────────────── */
-  .shift-bar {
-    background: linear-gradient(135deg, rgba(34,197,94,.1), rgba(34,197,94,.05));
-    border: 1px solid rgba(34,197,94,.3);
-    border-radius: var(--radius);
-    padding: 12px 14px;
-    margin-bottom: 14px;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .shift-dot {
-    width: 10px; height: 10px; border-radius: 50%; background: var(--green);
-    box-shadow: 0 0 8px var(--green); flex-shrink: 0;
-    animation: pulse 2s ease-in-out infinite;
-  }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
-  .shift-bar.closed { background: rgba(239,68,68,.07); border-color: rgba(239,68,68,.3); }
-  .shift-bar.closed .shift-dot { background: var(--ember); box-shadow: 0 0 8px var(--ember); animation: none; }
+/* ── TOBACCO ── */
+.tob-cat{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);margin-bottom:8px;overflow:hidden;
+}
+.tob-hdr{
+  padding:12px 14px;display:flex;justify-content:space-between;
+  align-items:center;cursor:pointer;
+}
+.tob-hdr-name{font-size:13px;font-weight:600}
+.tob-cnt{
+  font-family:var(--font-d);font-size:13px;font-weight:700;
+  color:var(--red);background:var(--red-dim);
+  padding:1px 8px;border-radius:3px;
+}
+.tob-list{border-top:1px solid var(--border);display:none}
+.tob-item{
+  padding:9px 14px;font-size:13px;
+  border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.tob-item:last-child{border-bottom:none}
 
-  /* ── LOADER ──────────────────────────────────────────────────── */
-  .loader {
-    display: flex; align-items: center; justify-content: center;
-    height: 80px; color: var(--smoke); font-size: 14px; gap: 10px;
-  }
-  .spin {
-    width: 18px; height: 18px; border: 2px solid var(--border);
-    border-top-color: var(--amber); border-radius: 50%;
-    animation: spin .7s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+/* ── OVERLAY / SHEET ── */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.75);
+  z-index:200;display:none;align-items:flex-end;
+}
+.overlay.open{display:flex}
+.sheet{
+  background:var(--surface);border-radius:16px 16px 0 0;
+  padding:0 16px calc(16px + var(--safe));width:100%;
+  max-height:88dvh;overflow-y:auto;
+}
+.sheet-handle{
+  width:32px;height:3px;border-radius:2px;
+  background:var(--border);margin:12px auto 14px;
+}
+.sheet-title{
+  font-family:var(--font-d);font-size:20px;font-weight:700;
+  letter-spacing:.5px;margin-bottom:4px;
+}
+.sheet-sub{font-size:12px;color:var(--muted2);margin-bottom:16px}
 
-  /* ── MONTH SUMMARY GRID ──────────────────────────────────────── */
-  .month-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .month-cell {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 12px;
-  }
-  .month-cell-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-  .month-cell-value { font-size: 17px; font-weight: 700; }
+/* ── LOADER ── */
+.loader{
+  display:flex;align-items:center;justify-content:center;
+  height:120px;gap:10px;color:var(--muted);font-size:13px;
+}
+.spin{
+  width:16px;height:16px;border:2px solid var(--border);
+  border-top-color:var(--red);border-radius:50%;
+  animation:spin .6s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-  /* ── EMPTY ───────────────────────────────────────────────────── */
-  .empty {
-    text-align: center; padding: 48px 20px;
-    color: var(--smoke); font-size: 14px;
-  }
-  .empty-icon { font-size: 36px; margin-bottom: 10px; }
+/* ── EMPTY ── */
+.empty{text-align:center;padding:52px 20px;color:var(--muted)}
+.empty-ico{font-size:32px;margin-bottom:10px}
+.empty-txt{font-size:14px}
+
+/* ── HISTORY ITEM ── */
+.hi{
+  padding:10px 0;border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.hi:last-child{border-bottom:none}
+.hi-left{flex:1}
+.hi-zone{font-size:13px;font-weight:600}
+.hi-flavor{font-size:11px;color:var(--muted2);margin-top:1px}
+.hi-time{font-size:11px;color:var(--muted);text-align:right}
+
+/* ── PULL REFRESH ── */
+.ptr{
+  text-align:center;padding:10px;
+  font-size:11px;color:var(--muted);letter-spacing:.3px;
+}
 </style>
 </head>
 <body>
-
 <div id="app">
 
-  <!-- ── DASHBOARD ─────────────────────────────────────────────── -->
   <div id="page-dashboard" class="page active">
-    <div id="dash-loading" class="loader"><div class="spin"></div>Загрузка…</div>
-    <div id="dash-content" style="display:none"></div>
+    <div id="dash-l" class="loader"><div class="spin"></div>Загрузка…</div>
+    <div id="dash-c" style="display:none"></div>
   </div>
 
-  <!-- ── ORDERS ────────────────────────────────────────────────── -->
   <div id="page-orders" class="page">
-    <div id="orders-loading" class="loader"><div class="spin"></div>Загрузка…</div>
-    <div id="orders-content" style="display:none"></div>
+    <div id="ord-l" class="loader"><div class="spin"></div>Загрузка…</div>
+    <div id="ord-c" style="display:none"></div>
   </div>
 
-  <!-- ── FINANCE ───────────────────────────────────────────────── -->
   <div id="page-finance" class="page">
-    <div id="fin-loading" class="loader"><div class="spin"></div>Загрузка…</div>
-    <div id="fin-content" style="display:none"></div>
+    <div id="fin-l" class="loader"><div class="spin"></div>Загрузка…</div>
+    <div id="fin-c" style="display:none"></div>
   </div>
 
-  <!-- ── TOBACCO ───────────────────────────────────────────────── -->
   <div id="page-tobacco" class="page">
-    <div id="tob-loading" class="loader"><div class="spin"></div>Загрузка…</div>
-    <div id="tob-content" style="display:none"></div>
+    <div id="tob-l" class="loader"><div class="spin"></div>Загрузка…</div>
+    <div id="tob-c" style="display:none"></div>
   </div>
 
-  <!-- ── NAV ───────────────────────────────────────────────────── -->
   <nav>
-    <button class="nav-btn active" onclick="nav('dashboard')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-        <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-      </svg>
-      Обзор
+    <button class="nb active" data-page="dashboard" onclick="nav(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+        <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+        <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+      </svg>Обзор
     </button>
-    <button class="nav-btn" onclick="nav('orders')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M17 8h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2v4l-4-4H9a1.994 1.994 0 0 1-1.414-.586m0 0L11 14h4a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2v4l.586-.586z"/>
-      </svg>
-      Кальяны
+    <button class="nb" data-page="orders" onclick="nav(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+        <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
+      </svg>Кальяны
     </button>
-    <button class="nav-btn" onclick="nav('finance')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
-        <path d="M12 6v6l4 2"/>
-      </svg>
-      Финансы
+    <button class="nb" data-page="finance" onclick="nav(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M3 3v18h18"/><path d="M18 9l-5 5-4-4-3 3"/>
+      </svg>Финансы
     </button>
-    <button class="nav-btn" onclick="nav('tobacco')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M3 18h18M3 14h14a2 2 0 0 1 2 2M3 10h12m0 0a4 4 0 0 1 4 4M15 10V6a3 3 0 0 0-3-3"/>
-      </svg>
-      Табаки
+    <button class="nb" data-page="tobacco" onclick="nav(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M3 18h18M3 14h14a2 2 0 0 1 2 2M3 10h10m2 0a4 4 0 0 1 4 4M15 10V6a3 3 0 0 0-3-3"/>
+      </svg>Табаки
     </button>
   </nav>
-
 </div>
 
-<!-- ── REPORT SHEET ───────────────────────────────────────────── -->
-<div class="overlay" id="report-overlay" onclick="closeSheet()">
+<!-- REPORT SHEET -->
+<div class="overlay" id="rep-ov" onclick="closeSheet('rep-ov')">
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-handle"></div>
-    <div id="sheet-content"></div>
+    <div id="rep-body"></div>
+  </div>
+</div>
+
+<!-- EMPLOYEE HISTORY SHEET -->
+<div class="overlay" id="emp-ov" onclick="closeSheet('emp-ov')">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div id="emp-body"></div>
   </div>
 </div>
 
 <script>
-// ── CONFIG ────────────────────────────────────────────────────────
+// ── CONFIG ──────────────────────────────────────────────────────
 const API = 'https://shimmy-landscape-valid.ngrok-free.dev';
 
-// ── STATE ─────────────────────────────────────────────────────────
-let finMonths = [];
-let finCurrentMonth = null;
-let currentPage = 'dashboard';
-let dashLoaded = false;
-let finLoaded  = false;
-let tobLoaded  = false;
+// ── STATE ────────────────────────────────────────────────────────
+const loaded = {};
+let timers = {}; // order_id -> {start, stage, interval}
 
-// ── HELPERS ───────────────────────────────────────────────────────
+// ── HELPERS ──────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
 function money(v) {
@@ -407,7 +440,7 @@ function money(v) {
   return Number(v).toLocaleString('ru-RU') + ' ₽';
 }
 
-async function api(path) {
+async function req(path) {
   const r = await fetch(API + path, {
     headers: { 'ngrok-skip-browser-warning': '1' }
   });
@@ -415,299 +448,440 @@ async function api(path) {
   return r.json();
 }
 
-// ── NAV ───────────────────────────────────────────────────────────
-function nav(page) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  $('page-' + page).classList.add('active');
-  event.currentTarget.classList.add('active');
-  currentPage = page;
-
-  if (page === 'dashboard' && !dashLoaded) loadDashboard();
-  if (page === 'orders')  loadOrders();
-  if (page === 'finance' && !finLoaded)  loadFinance();
-  if (page === 'tobacco' && !tobLoaded)  loadTobacco();
+async function send(path, method = 'PATCH', body = null) {
+  const opts = { method, headers: { 'ngrok-skip-browser-warning': '1', 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API + path, opts);
+  if (!r.ok) throw new Error(r.statusText);
+  return r.json();
 }
 
-// ── DASHBOARD ─────────────────────────────────────────────────────
-async function loadDashboard() {
-  dashLoaded = true;
+function openSheet(id) { $(id).classList.add('open'); }
+function closeSheet(id) { $(id).classList.remove('open'); }
+
+// ── NAV ──────────────────────────────────────────────────────────
+function nav(btn) {
+  const page = btn.dataset.page;
+  document.querySelectorAll('.page').forEach(p => {
+    p.classList.remove('active', 'visible');
+  });
+  document.querySelectorAll('.nb').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const el = $('page-' + page);
+  el.classList.add('active');
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('visible')));
+
+  if (page === 'dashboard') loadDash();
+  if (page === 'orders')    loadOrders();
+  if (page === 'finance' && !loaded.fin) loadFin();
+  if (page === 'tobacco' && !loaded.tob) loadTob();
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────────
+async function loadDash() {
+  if (loaded.dash) return;
   try {
-    const d = await api('/api/dashboard');
-    renderDashboard(d);
-  } catch(e) {
-    $('dash-loading').innerHTML = '<span style="color:var(--ember)">Ошибка подключения к серверу</span>';
+    const d = await req('/api/dashboard');
+    renderDash(d);
+    loaded.dash = true;
+  } catch {
+    $('dash-l').innerHTML = '<span style="color:var(--red)">Ошибка подключения</span>';
   }
 }
 
-function renderDashboard(d) {
-  $('dash-loading').style.display = 'none';
-  $('dash-content').style.display = 'block';
+function renderDash(d) {
+  $('dash-l').style.display = 'none';
+  $('dash-c').style.display = 'block';
 
   const shift = d.active_shift;
-  const lr = d.last_report;
-  const cm = d.current_month;
+  const lr    = d.last_report;
+  const cm    = d.current_month;
 
   const shiftBar = shift
-    ? `<div class="shift-bar">
-        <div class="shift-dot"></div>
+    ? `<div class="shift-bar on">
+        <div class="sdot"></div>
         <div>
-          <div style="font-size:14px;font-weight:600;color:var(--green)">Смена открыта</div>
-          <div style="font-size:12px;color:var(--text-muted)">С ${shift.opened_at?.slice(11,16) ?? '—'}</div>
+          <div class="shift-label" style="color:var(--green)">Смена открыта</div>
+          <div class="shift-sub">ID ${shift.id} · с ${shift.opened_at?.slice(11,16)}</div>
         </div>
       </div>`
-    : `<div class="shift-bar closed">
-        <div class="shift-dot"></div>
-        <div style="font-size:14px;font-weight:600;color:var(--ember)">Смена закрыта</div>
+    : `<div class="shift-bar off">
+        <div class="sdot"></div>
+        <div class="shift-label" style="color:var(--muted2)">Смена закрыта</div>
       </div>`;
 
-  const stats = `
-    <div class="stat-grid">
-      <div class="stat-cell">
-        <div class="stat-label">Активных кальянов</div>
-        <div class="stat-value amber">${d.active_orders}</div>
-      </div>
-      <div class="stat-cell">
-        <div class="stat-label">Сотрудников</div>
-        <div class="stat-value">${d.employee_count}</div>
-      </div>
-    </div>`;
+  const stats = `<div class="sg">
+    <div class="sc red">
+      <div class="sc-label">Активных кальянов</div>
+      <div class="sc-val red">${d.active_orders}</div>
+    </div>
+    <div class="sc">
+      <div class="sc-label">Сотрудников</div>
+      <div class="sc-val">${d.employee_count}</div>
+    </div>
+  </div>`;
 
   let monthBlock = '';
   if (cm) {
-    monthBlock = `
-      <div class="section-title">Текущий месяц</div>
-      <div class="card">
-        <div class="fin-row"><span class="label">Смен</span><span class="val">${cm.cnt}</span></div>
-        <div class="fin-row"><span class="label">Итого</span><span class="val pos">${money(cm.total)}</span></div>
-        <div class="fin-row"><span class="label">Кальяны</span><span class="val">${money(cm.hookahs)}</span></div>
-        <div class="fin-row"><span class="label">Бар</span><span class="val">${money(cm.bar)}</span></div>
-        <div class="fin-row"><span class="label">Пополнение/PS</span><span class="val">${money(cm.ps)}</span></div>
-      </div>`;
+    monthBlock = `<div class="sh">Текущий месяц</div>
+    <div class="card">
+      <div class="fr"><span class="fl">Смен</span><span class="fv">${cm.cnt}</span></div>
+      <div class="fr"><span class="fl">Итого</span><span class="fv pos">${money(cm.total)}</span></div>
+      <div class="fr"><span class="fl">Кальяны</span><span class="fv">${money(cm.hookahs)}</span></div>
+      <div class="fr"><span class="fl">Бар</span><span class="fv">${money(cm.bar)}</span></div>
+      <div class="fr"><span class="fl">Пополнение/PS</span><span class="fv">${money(cm.ps)}</span></div>
+    </div>`;
   }
 
   let lastBlock = '';
   if (lr) {
-    lastBlock = `
-      <div class="section-title">Последний отчёт</div>
-      <div class="report-card" onclick="openReport(${JSON.stringify(lr).replace(/"/g,'&quot;')})">
-        <div class="report-meta">
-          <span class="report-date">${lr.report_date}</span>
-          <span class="badge ${lr.shift_type==='День'?'badge-day':'badge-night'}">${lr.shift_type}</span>
+    lastBlock = `<div class="sh">Последний отчёт</div>
+    <div class="rc" onclick='openReport(${JSON.stringify(lr)})'>
+      <div class="rc-left">
+        <div class="rc-top">
+          <span class="rc-date">${lr.report_date}</span>
+          <span class="badge ${lr.shift_type==='День'?'bd':'bn'}">${lr.shift_type}</span>
         </div>
-        <div class="report-emp">${lr.employees}</div>
-        <div class="report-total">${money(lr.total)}</div>
-      </div>`;
+        <div class="rc-emp">${lr.employees}</div>
+      </div>
+      <div class="rc-total">${money(lr.total)}</div>
+      <div class="rc-arr">›</div>
+    </div>`;
   }
 
-  $('dash-content').innerHTML = shiftBar + stats + monthBlock + lastBlock;
+  $('dash-c').innerHTML = shiftBar + stats + monthBlock + lastBlock;
 }
 
-// ── ORDERS ────────────────────────────────────────────────────────
+// ── ORDERS ───────────────────────────────────────────────────────
 async function loadOrders() {
-  $('orders-loading').style.display = 'flex';
-  $('orders-content').style.display = 'none';
+  $('ord-l').style.display = 'flex';
+  $('ord-c').style.display = 'none';
   try {
-    const d = await api('/api/orders?status=active');
+    const d = await req('/api/orders?status=active');
     renderOrders(d.orders);
-  } catch(e) {
-    $('orders-loading').innerHTML = '<span style="color:var(--ember)">Ошибка загрузки</span>';
+  } catch {
+    $('ord-l').innerHTML = '<span style="color:var(--red)">Ошибка загрузки</span>';
   }
 }
 
 function renderOrders(orders) {
-  $('orders-loading').style.display = 'none';
-  $('orders-content').style.display = 'block';
+  $('ord-l').style.display = 'none';
+  $('ord-c').style.display = 'block';
 
   if (!orders.length) {
-    $('orders-content').innerHTML = `
-      <div class="empty">
-        <div class="empty-icon">💨</div>
-        <div>Активных кальянов нет</div>
-      </div>`;
+    $('ord-c').innerHTML = `<div class="empty"><div class="empty-ico">💨</div><div class="empty-txt">Активных кальянов нет</div></div>`;
     return;
   }
 
-  const html = orders.map(o => `
-    <div class="order-item">
-      <div class="order-header">
-        <span class="order-id">#${o.id}</span>
-        <span class="badge badge-open">активен</span>
-      </div>
-      <div class="order-zone">${o.zone} · ${o.table_number}</div>
-      <div class="order-detail">🍃 ${o.flavor}</div>
-      <div class="order-emp">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-        </svg>
-        ${o.employee_name ?? 'Не назначен'}
-        <span style="margin-left:auto;font-size:11px">${o.created_at?.slice(11,16) ?? ''}</span>
-      </div>
-    </div>`).join('');
+  const html = orders.map(o => {
+    const t = timers[o.id];
+    const timerHtml = t
+      ? `<div class="timer-wrap" id="tw-${o.id}">
+          <div>
+            <div class="timer-label" id="ts-${o.id}">—</div>
+            <div class="timer-stage" id="tstage-${o.id}"></div>
+          </div>
+          <div class="timer-val" id="tv-${o.id}">--:--</div>
+        </div>`
+      : `<div style="margin-top:10px">
+          <button class="btn-close" style="background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3);color:var(--amber)" onclick="startTimer(${o.id})">⏱ Запустить таймер</button>
+        </div>`;
 
-  $('orders-content').innerHTML = `
-    <div class="section-title">Активные · ${orders.length}</div>
+    return `<div class="oc" id="oc-${o.id}">
+      <div class="oc-accent"></div>
+      <div class="oc-body">
+        <div class="oc-top">
+          <div>
+            <div class="oc-zone">${o.zone} · ${o.table_number}</div>
+            <div class="oc-id">#${o.id}</div>
+          </div>
+          <button class="btn-close" onclick="closeOrder(${o.id})">Закрыть</button>
+        </div>
+        <div class="oc-flavor">🍃 ${o.flavor}</div>
+        ${timerHtml}
+        <div class="oc-footer">
+          <div class="oc-emp">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+            </svg>
+            ${o.employee_name || 'Не назначен'}
+          </div>
+          <div class="oc-time">${o.created_at?.slice(11,16) || ''}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  $('ord-c').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="sh" style="margin:0">Активные · ${orders.length}</div>
+      <button onclick="loadOrders()" style="background:none;border:none;color:var(--muted2);font-size:12px;cursor:pointer">↻ Обновить</button>
+    </div>
     ${html}`;
+
+  // restart running timers
+  Object.keys(timers).forEach(id => {
+    if (document.getElementById('tv-' + id)) tickTimer(Number(id));
+  });
 }
 
-// ── FINANCE ───────────────────────────────────────────────────────
-async function loadFinance() {
-  finLoaded = true;
+// ── TIMER ────────────────────────────────────────────────────────
+// Stages: 0=wait15, 1=flip(3min), 2=wait3, 3=flip2(3min), 4=wait(repeat cycle2 15min), etc.
+// Simplified: 15min→flip→3min→flip→15min→flip→3min→done
+const STAGES = [
+  { dur: 15*60, label: '🔥 Угли на кальян' },
+  { dur:  3*60, label: '🔄 Переверни угли' },
+  { dur:  3*60, label: '🔥 Угли обратно' },
+  { dur: 15*60, label: '🔥 Следующий цикл' },
+  { dur:  3*60, label: '🔄 Переверни угли' },
+  { dur:  3*60, label: '✅ Финальные угли' },
+];
+
+function startTimer(orderId) {
+  timers[orderId] = { startedAt: Date.now(), stageIdx: 0 };
+  loadOrders();
+}
+
+function tickTimer(orderId) {
+  const t = timers[orderId];
+  if (!t) return;
+
+  const tvEl     = document.getElementById('tv-' + orderId);
+  const tsEl     = document.getElementById('ts-' + orderId);
+  const tstageEl = document.getElementById('tstage-' + orderId);
+  if (!tvEl) return;
+
+  function tick() {
+    const t2 = timers[orderId];
+    if (!t2 || !document.getElementById('tv-' + orderId)) return;
+
+    const stage  = STAGES[t2.stageIdx];
+    if (!stage) {
+      tvEl.textContent = 'ГОТОВО';
+      tsEl.textContent = '✅ Ведение завершено';
+      tstageEl.textContent = '';
+      return;
+    }
+
+    const elapsed = Math.floor((Date.now() - t2.startedAt) / 1000);
+    const left    = stage.dur - elapsed;
+
+    if (left <= 0) {
+      t2.stageIdx++;
+      t2.startedAt = Date.now();
+      if (t2.stageIdx >= STAGES.length) {
+        tvEl.textContent = 'ГОТОВО';
+        tsEl.textContent = '✅ Ведение завершено';
+        tstageEl.textContent = '';
+        return;
+      }
+      setTimeout(tick, 100);
+      return;
+    }
+
+    const m = String(Math.floor(left / 60)).padStart(2, '0');
+    const s = String(left % 60).padStart(2, '0');
+    tvEl.textContent   = `${m}:${s}`;
+    tsEl.textContent   = stage.label;
+    tstageEl.textContent = `Этап ${t2.stageIdx + 1} / ${STAGES.length}`;
+
+    setTimeout(tick, 500);
+  }
+  tick();
+}
+
+// ── CLOSE ORDER ──────────────────────────────────────────────────
+async function closeOrder(id) {
+  if (!confirm(`Закрыть кальян #${id}?`)) return;
   try {
-    const d = await api('/api/finance/reports?limit=50');
-    finMonths = d.months;
-    finCurrentMonth = d.months[0] ?? null;
-    renderFinance(d.reports, d.months);
-  } catch(e) {
-    $('fin-loading').innerHTML = '<span style="color:var(--ember)">Ошибка загрузки</span>';
+    await send(`/api/orders/${id}/close`);
+    delete timers[id];
+    loaded.dash = false;
+    loadOrders();
+  } catch {
+    alert('Ошибка при закрытии');
   }
 }
 
-async function switchMonth(month) {
-  finCurrentMonth = month;
-  document.querySelectorAll('.month-tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.m === month);
-  });
-  $('fin-reports').innerHTML = '<div class="loader"><div class="spin"></div>Загрузка…</div>';
-
-  const [reports, summary] = await Promise.all([
-    api(`/api/finance/reports?month=${month}&limit=30`).then(d => d.reports),
-    api(`/api/finance/month/${month}`)
-  ]);
-
-  renderMonthSummary(month, summary);
-  $('fin-reports').innerHTML = reports.map(reportCard).join('') || '<div class="empty"><div class="empty-icon">📋</div><div>Нет отчётов за этот месяц</div></div>';
+// ── FINANCE ──────────────────────────────────────────────────────
+async function loadFin() {
+  loaded.fin = true;
+  try {
+    const d = await req('/api/finance/reports?limit=50');
+    renderFin(d.reports, d.months);
+  } catch {
+    $('fin-l').innerHTML = '<span style="color:var(--red)">Ошибка загрузки</span>';
+  }
 }
 
-function reportCard(r) {
-  return `<div class="report-card" onclick="openReport(${JSON.stringify(r).replace(/"/g,'&quot;')})">
-    <div class="report-meta">
-      <span class="report-date">${r.report_date}</span>
-      <span class="badge ${r.shift_type==='День'?'badge-day':'badge-night'}">${r.shift_type}</span>
+async function switchMonth(m) {
+  document.querySelectorAll('.mt').forEach(t => t.classList.toggle('active', t.dataset.m === m));
+  const rEl = $('fin-reports');
+  const sEl = $('fin-summary');
+  rEl.innerHTML = '<div class="loader"><div class="spin"></div></div>';
+  sEl.innerHTML = '';
+
+  const [reports, summary] = await Promise.all([
+    req(`/api/finance/reports?month=${m}&limit=30`).then(d => d.reports),
+    req(`/api/finance/month/${m}`)
+  ]);
+
+  sEl.innerHTML = renderMonthSummary(m, summary);
+  rEl.innerHTML = reports.map(reportCard).join('') ||
+    '<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">Нет отчётов</div></div>';
+}
+
+function renderMonthSummary(m, s) {
+  if (!s.cnt) return '';
+  return `<div class="card" style="margin-bottom:12px">
+    <div class="card-title">📆 ${m}</div>
+    <div class="ms-grid">
+      <div class="ms-cell"><div class="ms-label">Смен</div><div class="ms-val">${s.cnt}</div></div>
+      <div class="ms-cell"><div class="ms-label">Итого</div><div class="ms-val" style="color:var(--red)">${money(s.total)}</div></div>
+      <div class="ms-cell"><div class="ms-label">Безнал</div><div class="ms-val">${money(s.cashless)}</div></div>
+      <div class="ms-cell"><div class="ms-label">Нал</div><div class="ms-val">${money(s.cash)}</div></div>
+      <div class="ms-cell"><div class="ms-label">Кальяны</div><div class="ms-val">${money(s.hookah_total)}</div></div>
+      <div class="ms-cell"><div class="ms-label">Бар</div><div class="ms-val">${money(s.bar_total)}</div></div>
+      <div class="ms-cell"><div class="ms-label">Возвраты</div><div class="ms-val" style="color:var(--red)">${money(s.refunds)}</div></div>
+      <div class="ms-cell"><div class="ms-label">Бонусы</div><div class="ms-val">${money(s.bonuses)}</div></div>
     </div>
-    <div class="report-emp">${r.employees}</div>
-    <div class="report-total">${money(r.total)}</div>
   </div>`;
 }
 
-function renderMonthSummary(month, s) {
-  $('fin-month-summary').innerHTML = s.cnt ? `
-    <div class="card" style="margin-bottom:14px">
-      <div class="card-title">📆 ${month} — итого</div>
-      <div class="month-grid">
-        <div class="month-cell"><div class="month-cell-label">Смен</div><div class="month-cell-value">${s.cnt}</div></div>
-        <div class="month-cell"><div class="month-cell-label">Итого</div><div class="month-cell-value" style="color:var(--amber)">${money(s.total)}</div></div>
-        <div class="month-cell"><div class="month-cell-label">Безнал</div><div class="month-cell-value">${money(s.cashless)}</div></div>
-        <div class="month-cell"><div class="month-cell-label">Нал</div><div class="month-cell-value">${money(s.cash)}</div></div>
-        <div class="month-cell"><div class="month-cell-label">Кальяны</div><div class="month-cell-value">${money(s.hookah_total)}</div></div>
-        <div class="month-cell"><div class="month-cell-label">Бар</div><div class="month-cell-value">${money(s.bar_total)}</div></div>
-        <div class="month-cell"><div class="month-cell-label">Возвраты</div><div class="month-cell-value" style="color:var(--ember)">${money(s.refunds)}</div></div>
-        <div class="month-cell"><div class="month-cell-label">Бонусы</div><div class="month-cell-value">${money(s.bonuses)}</div></div>
+function reportCard(r) {
+  return `<div class="rc" onclick='openReport(${JSON.stringify(r)})'>
+    <div class="rc-left">
+      <div class="rc-top">
+        <span class="rc-date">${r.report_date}</span>
+        <span class="badge ${r.shift_type==='День'?'bd':'bn'}">${r.shift_type}</span>
       </div>
-    </div>` : '';
+      <div class="rc-emp">${r.employees}</div>
+    </div>
+    <div class="rc-total">${money(r.total)}</div>
+    <div class="rc-arr">›</div>
+  </div>`;
 }
 
-function renderFinance(reports, months) {
-  $('fin-loading').style.display = 'none';
-  $('fin-content').style.display = 'block';
-
-  const tabs = months.map(m => `
-    <button class="month-tab ${m===months[0]?'active':''}" data-m="${m}" onclick="switchMonth('${m}')">${m}</button>`).join('');
-
-  $('fin-content').innerHTML = `
-    <div class="month-tabs">${tabs}</div>
-    <div id="fin-month-summary"></div>
-    <div class="section-title">Отчёты</div>
+function renderFin(reports, months) {
+  $('fin-l').style.display = 'none';
+  $('fin-c').style.display = 'block';
+  const tabs = months.map(m =>
+    `<button class="mt ${m===months[0]?'active':''}" data-m="${m}" onclick="switchMonth('${m}')">${m}</button>`
+  ).join('');
+  $('fin-c').innerHTML = `
+    <div class="mt-wrap">${tabs}</div>
+    <div id="fin-summary"></div>
+    <div class="sh">Отчёты</div>
     <div id="fin-reports">${reports.map(reportCard).join('')}</div>`;
-
-  if (months[0]) {
-    api(`/api/finance/month/${months[0]}`).then(s => renderMonthSummary(months[0], s));
-  }
+  if (months[0]) req(`/api/finance/month/${months[0]}`).then(s => {
+    $('fin-summary').innerHTML = renderMonthSummary(months[0], s);
+  });
 }
 
-// ── TOBACCO ───────────────────────────────────────────────────────
-async function loadTobacco() {
-  tobLoaded = true;
+function openReport(r) {
+  if (typeof r === 'string') r = JSON.parse(r);
+  $('rep-body').innerHTML = `
+    <div class="sheet-title">${r.report_date} · ${r.shift_type}</div>
+    <div class="sheet-sub">${r.employees}</div>
+    <div class="fr"><span class="fl">Итого</span><span class="fv pos">${money(r.total)}</span></div>
+    <div class="fr"><span class="fl">Безнал</span><span class="fv">${money(r.cashless)}</span></div>
+    <div class="fr"><span class="fl">Нал</span><span class="fv">${money(r.cash)}</span></div>
+    <div class="fr"><span class="fl">Эквайринг</span><span class="fv">${money(r.acquiring)}</span></div>
+    <div class="fr"><span class="fl">СБП</span><span class="fv">${money(r.sbp)}</span></div>
+    <div class="fr"><span class="fl">Бар</span><span class="fv">${money(r.bar_total)}</span></div>
+    <div class="fr"><span class="fl">Пополнение/PS</span><span class="fv">${money(r.ps_total)}</span></div>
+    <div class="fr"><span class="fl">Кальяны</span><span class="fv">${money(r.hookah_total)}</span></div>
+    <div class="fr"><span class="fl">Пробковый сбор</span><span class="fv">${money(r.cork_total)}</span></div>
+    <div class="fr"><span class="fl">Возвраты</span><span class="fv neg">${money(r.refunds)}</span></div>
+    <div class="fr"><span class="fl">Бонусы</span><span class="fv">${money(r.bonuses)}</span></div>
+    ${r.expenses_text ? `<div class="fr"><span class="fl">Расходы</span><span class="fv" style="font-size:12px">${r.expenses_text}</span></div>` : ''}
+    <div class="fr"><span class="fl">Закрыл</span><span class="fv" style="font-weight:500">${r.closed_by||'—'}</span></div>
+    <div class="fr"><span class="fl">Приняли</span><span class="fv" style="font-weight:500">${r.accepted_by||'—'}</span></div>`;
+  openSheet('rep-ov');
+}
+
+// ── TOBACCO ──────────────────────────────────────────────────────
+async function loadTob() {
+  loaded.tob = true;
   try {
-    const d = await api('/api/tobacco');
-    renderTobacco(d);
-  } catch(e) {
-    $('tob-loading').innerHTML = '<span style="color:var(--ember)">Ошибка загрузки</span>';
+    const d = await req('/api/tobacco');
+    renderTob(d);
+  } catch {
+    $('tob-l').innerHTML = '<span style="color:var(--red)">Ошибка загрузки</span>';
   }
 }
 
-function renderTobacco(d) {
-  $('tob-loading').style.display = 'none';
-  $('tob-content').style.display = 'block';
-
-  const header = `
-    <div class="stat-grid" style="margin-bottom:16px">
-      <div class="stat-cell">
-        <div class="stat-label">Вкусов в наличии</div>
-        <div class="stat-value amber">${d.total}</div>
-      </div>
-      <div class="stat-cell">
-        <div class="stat-label">Категорий</div>
-        <div class="stat-value">${d.categories.length}</div>
-      </div>
-    </div>`;
-
+function renderTob(d) {
+  $('tob-l').style.display = 'none';
+  $('tob-c').style.display = 'block';
+  const header = `<div class="sg" style="margin-bottom:14px">
+    <div class="sc red">
+      <div class="sc-label">Вкусов всего</div>
+      <div class="sc-val red">${d.total}</div>
+    </div>
+    <div class="sc">
+      <div class="sc-label">Категорий</div>
+      <div class="sc-val">${d.categories.length}</div>
+    </div>
+  </div>`;
   const cats = d.categories.map(cat => `
-    <div class="tobacco-cat">
-      <div class="tobacco-cat-header" onclick="toggleCat(this)">
-        <span class="tobacco-cat-title">${cat.name}</span>
-        <span class="tobacco-cat-count">${cat.items.length}</span>
+    <div class="tob-cat">
+      <div class="tob-hdr" onclick="togCat(this)">
+        <span class="tob-hdr-name">${cat.name}</span>
+        <span class="tob-cnt">${cat.items.length}</span>
       </div>
-      <div class="tobacco-list" style="display:none">
-        ${cat.items.map(i => `<div class="tobacco-item"><span>${i.name}</span></div>`).join('')}
+      <div class="tob-list">
+        ${cat.items.map(i => `<div class="tob-item"><span>${i.name}</span></div>`).join('')}
       </div>
     </div>`).join('');
-
-  $('tob-content').innerHTML = header + cats;
+  $('tob-c').innerHTML = header + cats;
 }
 
-function toggleCat(el) {
+function togCat(el) {
   const list = el.nextElementSibling;
-  list.style.display = list.style.display === 'none' ? 'block' : 'none';
+  list.style.display = list.style.display === 'block' ? 'none' : 'block';
 }
 
-// ── REPORT SHEET ──────────────────────────────────────────────────
-function openReport(r) {
-  if (typeof r === 'string') r = JSON.parse(r.replace(/&quot;/g, '"'));
-  $('sheet-content').innerHTML = `
-    <div class="sheet-title">${r.report_date} · ${r.shift_type}</div>
-    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">${r.employees}</div>
-    <div class="fin-row"><span class="label">Итого</span><span class="val pos">${money(r.total)}</span></div>
-    <div class="fin-row"><span class="label">Безнал</span><span class="val">${money(r.cashless)}</span></div>
-    <div class="fin-row"><span class="label">Нал</span><span class="val">${money(r.cash)}</span></div>
-    <div class="fin-row"><span class="label">Эквайринг</span><span class="val">${money(r.acquiring)}</span></div>
-    <div class="fin-row"><span class="label">СБП</span><span class="val">${money(r.sbp)}</span></div>
-    <div class="fin-row"><span class="label">Бар</span><span class="val">${money(r.bar_total)}</span></div>
-    <div class="fin-row"><span class="label">Пополнение/PS</span><span class="val">${money(r.ps_total)}</span></div>
-    <div class="fin-row"><span class="label">Кальяны</span><span class="val">${money(r.hookah_total)}</span></div>
-    <div class="fin-row"><span class="label">Пробковый сбор</span><span class="val">${money(r.cork_total)}</span></div>
-    <div class="fin-row"><span class="label">Возвраты</span><span class="val neg">${money(r.refunds)}</span></div>
-    <div class="fin-row"><span class="label">Бонусы</span><span class="val">${money(r.bonuses)}</span></div>
-    ${r.expenses_text ? `<div class="fin-row"><span class="label">Расходы</span><span class="val" style="font-size:13px">${r.expenses_text}</span></div>` : ''}
-    <div class="fin-row"><span class="label">Закрыл</span><span class="val" style="font-weight:500">${r.closed_by||'—'}</span></div>
-    <div class="fin-row"><span class="label">Приняли</span><span class="val" style="font-weight:500">${r.accepted_by||'—'}</span></div>`;
-  $('report-overlay').classList.add('open');
+// ── EMPLOYEE HISTORY ─────────────────────────────────────────────
+async function openEmpHistory(emp) {
+  $('emp-body').innerHTML = `<div class="loader"><div class="spin"></div></div>`;
+  openSheet('emp-ov');
+  try {
+    const d = await req(`/api/orders?employee_id=${emp.id}`);
+    const orders = d.orders.slice(0, 30);
+    const histHtml = orders.length
+      ? orders.map(o => `<div class="hi">
+          <div class="hi-left">
+            <div class="hi-zone">${o.zone} · ${o.table_number}</div>
+            <div class="hi-flavor">${o.flavor}</div>
+          </div>
+          <div class="hi-time">
+            <div class="badge ${o.status==='active'?'br bg':''}" style="margin-bottom:3px">${o.status==='active'?'активен':'закрыт'}</div>
+            <div>${o.created_at?.slice(5,16)||''}</div>
+          </div>
+        </div>`).join('')
+      : '<div class="empty"><div class="empty-txt">Нет заказов</div></div>';
+
+    $('emp-body').innerHTML = `
+      <div class="sheet-title">${emp.name}</div>
+      <div class="sheet-sub">Кальянов всего: ${emp.hookahs_total} · Активных: ${emp.hookahs_active}</div>
+      <div class="sh">История</div>
+      ${histHtml}`;
+  } catch {
+    $('emp-body').innerHTML = '<div class="empty"><div class="empty-txt" style="color:var(--red)">Ошибка загрузки</div></div>';
+  }
 }
 
-function closeSheet() {
-  $('report-overlay').classList.remove('open');
-}
-
-// ── INIT ──────────────────────────────────────────────────────────
+// ── INIT ─────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-  // Telegram WebApp integration
   if (window.Telegram?.WebApp) {
     Telegram.WebApp.ready();
     Telegram.WebApp.expand();
-    Telegram.WebApp.setHeaderColor('#0e0e0f');
-    Telegram.WebApp.setBackgroundColor('#0e0e0f');
+    Telegram.WebApp.setHeaderColor('#0a0a0a');
+    Telegram.WebApp.setBackgroundColor('#0a0a0a');
   }
-  loadDashboard();
+  $('page-dashboard').classList.add('visible');
+  loadDash();
 });
 </script>
 </body>
