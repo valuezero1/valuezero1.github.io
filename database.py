@@ -128,6 +128,7 @@ def init_db():
     )
 
     _ensure_column("tobacco", "category", "TEXT")
+    _ensure_column("tobacco", "stock", "TEXT DEFAULT 'full'")
     conn.commit()
 
 

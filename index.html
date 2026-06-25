@@ -301,6 +301,20 @@ nav{
 }
 .tob-item:last-child{border-bottom:none}
 
+/* ── TOBACCO STOCK ── */
+.stock-dot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-left:8px;
+}
+.stock-full  .stock-dot{background:var(--green)}
+.stock-half  .stock-dot{background:var(--amber)}
+.stock-low   .stock-dot{background:var(--red)}
+.stock-empty .stock-dot{background:var(--muted);opacity:.5}
+.stock-full  {opacity:1}
+.stock-half  {opacity:.9}
+.stock-low   {opacity:.85}
+.stock-empty {opacity:.45}
+.stock-label{font-size:10px;color:var(--muted2);margin-left:6px;white-space:nowrap}
+
 /* ── OVERLAY / SHEET ── */
 .overlay{
   position:fixed;inset:0;background:rgba(0,0,0,.75);
@@ -923,29 +937,44 @@ function renderTop(t) {
   const maxTotal = t.by_total[0]?.value || 1;
   const maxBar   = t.by_bar[0]?.value   || 1;
 
+  function cleanName(n) {
+    n = n.trim().replace(/^["']+|["']+$/g, '');
+    if (n && !/^[a-zA-Zа-яА-ЯёЁ]/.test(n)) {
+      const parts = n.split(/\s+/);
+      n = parts.slice(1).join(' ') || n;
+    }
+    return n;
+  }
+
   function rows(list, maxVal) {
     return list.map((e, i) => {
-      const pct = Math.round(e.value / maxVal * 100);
-      const icon = i < 3 ? `<span class="top-medal">${medals[i]}</span>`
-                          : `<span class="top-num">${i+1}</span>`;
+      const pct  = Math.round(e.value / maxVal * 100);
+      const icon = i < 3
+        ? `<span class="top-medal">${medals[i]}</span>`
+        : `<span class="top-num">${i+1}</span>`;
+      const name = cleanName(e.name);
       return `<div class="top-row">
         ${icon}
         <div class="top-name">
-          ${e.name}
+          ${name}
+          <div style="font-size:10px;color:var(--muted2);margin-top:1px">${e.shifts} смен</div>
           <div class="top-bar-wrap"><div class="top-bar-fill" style="width:${pct}%"></div></div>
         </div>
-        <div class="top-val">${money(e.value)}</div>
+        <div style="text-align:right">
+          <div class="top-val">${money(e.value)}</div>
+          <div style="font-size:10px;color:var(--muted2)">в среднем</div>
+        </div>
       </div>`;
     }).join('');
   }
 
   return `
     <div class="top-card">
-      <div class="top-title">💰 Топ по выручке</div>
+      <div class="top-title">💰 Топ по выручке (среднее/смена)</div>
       ${rows(t.by_total, maxTotal)}
     </div>
     <div class="top-card">
-      <div class="top-title">🍺 Топ по бару</div>
+      <div class="top-title">🍺 Топ по бару (среднее/смена)</div>
       ${rows(t.by_bar, maxBar)}
     </div>`;
 }
@@ -964,6 +993,14 @@ async function loadTob() {
 function renderTob(d) {
   $('tob-l').style.display = 'none';
   $('tob-c').style.display = 'block';
+
+  const stockLabel = { full:'Полная', half:'Половина', low:'Мало', empty:'Закончился' };
+
+  // Count by stock
+  let allItems = d.categories.flatMap(c => c.items);
+  const emptyCnt = allItems.filter(i => i.stock === 'empty').length;
+  const lowCnt   = allItems.filter(i => i.stock === 'low').length;
+
   const header = `<div class="sg" style="margin-bottom:14px">
     <div class="sc red">
       <div class="sc-label">Вкусов всего</div>
@@ -973,7 +1010,15 @@ function renderTob(d) {
       <div class="sc-label">Категорий</div>
       <div class="sc-val">${d.categories.length}</div>
     </div>
+    ${lowCnt || emptyCnt ? `<div class="sc" style="grid-column:1/-1;border-top-color:var(--red)">
+      <div class="sc-label">⚠️ Требуют внимания</div>
+      <div style="font-size:13px;margin-top:4px">
+        ${lowCnt ? `<span style="color:var(--red);margin-right:12px">🔴 Мало: ${lowCnt}</span>` : ''}
+        ${emptyCnt ? `<span style="color:var(--muted)">⚫ Закончился: ${emptyCnt}</span>` : ''}
+      </div>
+    </div>` : ''}
   </div>`;
+
   const cats = d.categories.map(cat => `
     <div class="tob-cat">
       <div class="tob-hdr" onclick="togCat(this)">
@@ -981,7 +1026,16 @@ function renderTob(d) {
         <span class="tob-cnt">${cat.items.length}</span>
       </div>
       <div class="tob-list">
-        ${cat.items.map(i => `<div class="tob-item"><span>${i.name}</span></div>`).join('')}
+        ${cat.items.map(i => {
+          const st = i.stock || 'full';
+          return `<div class="tob-item stock-${st}">
+            <span>${i.name}</span>
+            <div style="display:flex;align-items:center">
+              <span class="stock-label">${stockLabel[st] || st}</span>
+              <div class="stock-dot"></div>
+            </div>
+          </div>`;
+        }).join('')}
       </div>
     </div>`).join('');
   $('tob-c').innerHTML = header + cats;

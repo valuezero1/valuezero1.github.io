@@ -1,11 +1,8 @@
 """
 Hookah CRM — REST API для Telegram Mini App
-Запуск: uvicorn api:app --host 0.0.0.0 --port 8000 --reload
-
-Зависимости:
-    pip install fastapi uvicorn
 """
 
+import re
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -13,7 +10,6 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 DB_PATH = "data/hookah.db"
@@ -30,7 +26,6 @@ app.add_middleware(
 
 # ─── DB ──────────────────────────────────────────────────────────────────────
 
-
 @contextmanager
 def get_db():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
@@ -43,7 +38,6 @@ def get_db():
 
 # ─── Models ──────────────────────────────────────────────────────────────────
 
-
 class OrderCreate(BaseModel):
     table_number: str
     zone: str
@@ -55,14 +49,28 @@ class TobaccoCreate(BaseModel):
     name: str
     category: str
     grams: int = 0
+    stock: str = "full"   # full | half | low | empty
+
+
+class TobaccoStockUpdate(BaseModel):
+    stock: str            # full | half | low | empty
+
+
+# ─── Helpers ─────────────────────────────────────────────────────────────────
+
+def _clean_name(name: str) -> str:
+    """Убирает кавычки и emoji-префиксы: '😋 Михаил' → 'Михаил'."""
+    name = name.strip().strip('"').strip("'")
+    if name and not name[0].isalpha() and not name[0].isdigit():
+        parts = name.split(maxsplit=1)
+        name = parts[1] if len(parts) > 1 else name
+    return name.strip()
 
 
 # ─── Dashboard ───────────────────────────────────────────────────────────────
 
-
 @app.get("/api/dashboard")
 def dashboard():
-    """Сводка для главного экрана."""
     with get_db() as conn:
         cur = conn.cursor()
 
@@ -113,10 +121,9 @@ def dashboard():
 
 # ─── Finance ─────────────────────────────────────────────────────────────────
 
-
 @app.get("/api/finance/reports")
 def finance_reports(
-    month: Optional[str] = Query(None, description="YYYY-MM"),
+    month: Optional[str] = Query(None),
     limit: int = Query(20, le=100),
     offset: int = Query(0),
 ):
@@ -184,8 +191,94 @@ def finance_month(month: str):
         return dict(row) if row and row["cnt"] else {}
 
 
-# ─── Orders ──────────────────────────────────────────────────────────────────
+# ─── Plan ────────────────────────────────────────────────────────────────────
 
+@app.get("/api/plan")
+def get_plan_api(month: Optional[str] = Query(None)):
+    if not month:
+        month = datetime.now().strftime("%Y-%m")
+
+    with get_db() as conn:
+        cur = conn.cursor()
+
+        # Проверяем существует ли таблица
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='monthly_plans'")
+        if not cur.fetchone():
+            return {"month": month, "plan": None, "total": 0, "bar_total": 0, "shifts": 0, "pct": None}
+
+        cur.execute("SELECT plan FROM monthly_plans WHERE month=?", (month,))
+        row = cur.fetchone()
+        plan = row["plan"] if row else None
+
+        cur.execute(
+            """
+            SELECT COALESCE(SUM(total), 0) AS total,
+                   COALESCE(SUM(bar_total), 0) AS bar_total,
+                   COUNT(*) AS shifts
+            FROM finance_reports
+            WHERE substr(report_date, 1, 7) = ?
+            """,
+            (month,),
+        )
+        fact = dict(cur.fetchone())
+
+    pct = round(fact["total"] / plan * 100) if plan else None
+    return {"month": month, "plan": plan, "total": fact["total"],
+            "bar_total": fact["bar_total"], "shifts": fact["shifts"], "pct": pct}
+
+
+# ─── Top employees ────────────────────────────────────────────────────────────
+
+@app.get("/api/top")
+def get_top_api(month: Optional[str] = Query(None)):
+    """
+    Топ сотрудников по СРЕДНЕМУ значению выручки и бара за смену.
+    Выручка смены делится поровну между сотрудниками.
+    """
+    if not month:
+        month = datetime.now().strftime("%Y-%m")
+
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT employees, total, bar_total FROM finance_reports WHERE substr(report_date,1,7)=?",
+            (month,),
+        )
+        rows = cur.fetchall()
+
+    # Накапливаем сумму и количество смен для каждого сотрудника
+    totals_sum:   dict[str, int] = {}
+    bars_sum:     dict[str, int] = {}
+    shift_count:  dict[str, int] = {}
+
+    for row in rows:
+        names_raw = row["employees"] or ""
+        names = [_clean_name(n) for n in names_raw.split(",") if n.strip()]
+        names = [n for n in names if n]
+        if not names:
+            continue
+        share_total = (row["total"] or 0) // len(names)
+        share_bar   = (row["bar_total"] or 0) // len(names)
+        for name in names:
+            totals_sum[name]  = totals_sum.get(name, 0) + share_total
+            bars_sum[name]    = bars_sum.get(name, 0) + share_bar
+            shift_count[name] = shift_count.get(name, 0) + 1
+
+    def rank(sums: dict, counts: dict) -> list:
+        result = []
+        for name, s in sums.items():
+            cnt = counts.get(name, 1)
+            result.append({"name": name, "value": s // cnt, "shifts": cnt, "total": s})
+        return sorted(result, key=lambda x: -x["value"])
+
+    return {
+        "month":    month,
+        "by_total": rank(totals_sum, shift_count),
+        "by_bar":   rank(bars_sum, shift_count),
+    }
+
+
+# ─── Orders ──────────────────────────────────────────────────────────────────
 
 @app.get("/api/orders")
 def get_orders(
@@ -224,12 +317,8 @@ def create_order(body: OrderCreate):
         cur.execute("SELECT id FROM employees WHERE id=? AND active=1", (body.employee_id,))
         if not cur.fetchone():
             raise HTTPException(404, "Сотрудник не найден")
-
         cur.execute(
-            """
-            INSERT INTO orders(table_number, zone, flavor, employee_id, status)
-            VALUES (?, ?, ?, ?, 'active')
-            """,
+            "INSERT INTO orders(table_number, zone, flavor, employee_id, status) VALUES (?, ?, ?, ?, 'active')",
             (body.table_number, body.zone, body.flavor, body.employee_id),
         )
         conn.commit()
@@ -241,10 +330,7 @@ def close_order(order_id: int):
     with get_db() as conn:
         cur = conn.cursor()
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        cur.execute(
-            "UPDATE orders SET status='closed', closed_at=? WHERE id=?",
-            (now, order_id),
-        )
+        cur.execute("UPDATE orders SET status='closed', closed_at=? WHERE id=?", (now, order_id))
         if cur.rowcount == 0:
             raise HTTPException(404, "Заказ не найден")
         conn.commit()
@@ -253,32 +339,20 @@ def close_order(order_id: int):
 
 # ─── Employees ───────────────────────────────────────────────────────────────
 
-
 @app.get("/api/employees")
 def get_employees(active_only: bool = Query(True)):
     with get_db() as conn:
         cur = conn.cursor()
         if active_only:
-            cur.execute(
-                "SELECT id, tg_id, name, active FROM employees WHERE active=1 ORDER BY name"
-            )
+            cur.execute("SELECT id, tg_id, name, active FROM employees WHERE active=1 ORDER BY name")
         else:
             cur.execute("SELECT id, tg_id, name, active FROM employees ORDER BY name")
         employees = [dict(r) for r in cur.fetchall()]
-
-        # Статистика кальянов
         for emp in employees:
-            cur.execute(
-                "SELECT COUNT(*) FROM orders WHERE employee_id=? AND status='closed'",
-                (emp["id"],),
-            )
+            cur.execute("SELECT COUNT(*) FROM orders WHERE employee_id=? AND status='closed'", (emp["id"],))
             emp["hookahs_total"] = cur.fetchone()[0]
-            cur.execute(
-                "SELECT COUNT(*) FROM orders WHERE employee_id=? AND status='active'",
-                (emp["id"],),
-            )
+            cur.execute("SELECT COUNT(*) FROM orders WHERE employee_id=? AND status='active'", (emp["id"],))
             emp["hookahs_active"] = cur.fetchone()[0]
-
         return {"employees": employees}
 
 
@@ -290,7 +364,6 @@ def current_shift():
         shift = cur.fetchone()
         if not shift:
             return {"shift": None}
-
         cur.execute(
             """
             SELECT e.id, e.name
@@ -301,29 +374,28 @@ def current_shift():
             (shift["id"],),
         )
         employees = [dict(r) for r in cur.fetchall()]
-
-        return {
-            "shift": {
-                "id": shift["id"],
-                "opened_at": shift["opened_at"],
-                "employees": employees,
-            }
-        }
+        return {"shift": {"id": shift["id"], "opened_at": shift["opened_at"], "employees": employees}}
 
 
 # ─── Tobacco ─────────────────────────────────────────────────────────────────
 
-
 TOBACCO_CATEGORIES = {
-    "sour_berries": "Кислые ягоды",
+    "sour_berries":  "Кислые ягоды",
     "sweet_berries": "Сладкие ягоды",
-    "sour_fruits": "Кислые фрукты",
-    "sweet_fruits": "Сладкие фрукты",
-    "herbal_fresh": "Травяные и свежие",
-    "floral": "Цветочные",
-    "desserts": "Десертные и кондитерские",
-    "drinks": "Напитки",
-    "mixes": "Миксы и авторские вкусы",
+    "sour_fruits":   "Кислые фрукты",
+    "sweet_fruits":  "Сладкие фрукты",
+    "herbal_fresh":  "Травяные и свежие",
+    "floral":        "Цветочные",
+    "desserts":      "Десертные и кондитерские",
+    "drinks":        "Напитки",
+    "mixes":         "Миксы и авторские вкусы",
+}
+
+STOCK_LABELS = {
+    "full":  "Полная",
+    "half":  "Половина",
+    "low":   "Мало",
+    "empty": "Закончился",
 }
 
 
@@ -331,12 +403,13 @@ TOBACCO_CATEGORIES = {
 def get_tobacco():
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT id, name, grams, category FROM tobacco ORDER BY category, name")
+        cur.execute("SELECT id, name, grams, category, stock FROM tobacco ORDER BY category, name")
         items = [dict(r) for r in cur.fetchall()]
 
     grouped = {code: {"name": name, "items": []} for code, name in TOBACCO_CATEGORIES.items()}
     uncategorized = []
     for item in items:
+        item["stock"] = item.get("stock") or "full"
         cat = item.get("category") or ""
         if cat in grouped:
             grouped[cat]["items"].append(item)
@@ -359,11 +432,24 @@ def add_tobacco(body: TobaccoCreate):
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO tobacco(name, grams, category) VALUES (?, ?, ?)",
-            (body.name, body.grams, body.category),
+            "INSERT INTO tobacco(name, grams, category, stock) VALUES (?, ?, ?, ?)",
+            (body.name, body.grams, body.category, body.stock or "full"),
         )
         conn.commit()
         return {"id": cur.lastrowid}
+
+
+@app.patch("/api/tobacco/{tobacco_id}/stock")
+def update_tobacco_stock(tobacco_id: int, body: TobaccoStockUpdate):
+    if body.stock not in STOCK_LABELS:
+        raise HTTPException(400, f"stock должен быть одним из: {list(STOCK_LABELS.keys())}")
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("UPDATE tobacco SET stock=? WHERE id=?", (body.stock, tobacco_id))
+        if cur.rowcount == 0:
+            raise HTTPException(404, "Не найдено")
+        conn.commit()
+        return {"ok": True}
 
 
 @app.delete("/api/tobacco/{tobacco_id}")
@@ -375,86 +461,3 @@ def delete_tobacco(tobacco_id: int):
             raise HTTPException(404, "Не найдено")
         conn.commit()
         return {"ok": True}
-
-@app.get("/api/plan")
-def get_plan_api(month: Optional[str] = Query(None)):
-    """
-    Возвращает план и фактическую выручку за месяц.
-    month = 'YYYY-MM', по умолчанию — текущий.
-    """
-    from datetime import datetime as _dt
-    if not month:
-        month = _dt.now().strftime("%Y-%m")
-
-    with get_db() as conn:
-        cur = conn.cursor()
-
-        cur.execute("SELECT plan FROM monthly_plans WHERE month=?", (month,))
-        row = cur.fetchone()
-        plan = row["plan"] if row else None
-
-        cur.execute(
-            """
-            SELECT COALESCE(SUM(total), 0)   AS total,
-                   COALESCE(SUM(bar_total), 0) AS bar_total,
-                   COUNT(*) AS shifts
-            FROM finance_reports
-            WHERE substr(report_date, 1, 7) = ?
-            """,
-            (month,),
-        )
-        fact = dict(cur.fetchone())
-
-    pct = round(fact["total"] / plan * 100) if plan else None
-
-    return {
-        "month": month,
-        "plan": plan,
-        "total": fact["total"],
-        "bar_total": fact["bar_total"],
-        "shifts": fact["shifts"],
-        "pct": pct,
-    }
-
-
-@app.get("/api/top")
-def get_top_api(month: Optional[str] = Query(None)):
-    """
-    Топ сотрудников по общей выручке и по бару за месяц.
-    Выручка делится поровну между всеми сотрудниками смены.
-    """
-    from datetime import datetime as _dt
-    if not month:
-        month = _dt.now().strftime("%Y-%m")
-
-    with get_db() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT employees, total, bar_total FROM finance_reports WHERE substr(report_date,1,7)=?",
-            (month,),
-        )
-        rows = cur.fetchall()
-
-    totals: dict[str, int] = {}
-    bars: dict[str, int] = {}
-
-    for row in rows:
-        names_raw = row["employees"] or ""
-        names = [n.strip() for n in names_raw.split(",") if n.strip()]
-        if not names:
-            continue
-        share_total = (row["total"] or 0) // len(names)
-        share_bar = (row["bar_total"] or 0) // len(names)
-        for name in names:
-            # Убираем emoji-префикс ("😋 Михаил" → "Михаил")
-            clean = name.strip()
-            if clean and not clean[0].isalpha():
-                parts = clean.split(maxsplit=1)
-                clean = parts[1] if len(parts) > 1 else clean
-            totals[clean] = totals.get(clean, 0) + share_total
-            bars[clean] = bars.get(clean, 0) + share_bar
-
-    def rank(d: dict) -> list:
-        return [{"name": k, "value": v} for k, v in sorted(d.items(), key=lambda x: -x[1])]
-
-    return {"month": month, "by_total": rank(totals), "by_bar": rank(bars)}
