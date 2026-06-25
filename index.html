@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Hookah CRM</title>
+<style>
+  /* ── TOKENS ─────────────────────────────────────────────────── */
+  :root {
+    --bg:       #0e0e0f;
+    --bg-card:  #18181b;
+    --bg-hover: #222226;
+    --border:   #2a2a2e;
+    --amber:    #f59e0b;
+    --amber-dim:#78490a;
+    --ember:    #ef4444;
+    --smoke:    #6b7280;
+    --text:     #f4f4f5;
+    --text-muted: #9ca3af;
+    --green:    #22c55e;
+    --blue:     #3b82f6;
+    --radius:   12px;
+    --nav-h:    64px;
+    --safe-b:   env(safe-area-inset-bottom, 0px);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    overscroll-behavior: none;
+  }
+
+  /* ── LAYOUT ─────────────────────────────────────────────────── */
+  #app { display: flex; flex-direction: column; height: 100dvh; }
+
+  .page {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 16px calc(var(--nav-h) + var(--safe-b) + 16px);
+    display: none;
+  }
+  .page.active { display: block; }
+
+  /* ── NAV ─────────────────────────────────────────────────────── */
+  nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: calc(var(--nav-h) + var(--safe-b));
+    padding-bottom: var(--safe-b);
+    background: var(--bg-card);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 100;
+  }
+
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    color: var(--smoke);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: .3px;
+    cursor: pointer;
+    transition: color .15s;
+    padding: 8px 0;
+  }
+  .nav-btn svg { width: 22px; height: 22px; }
+  .nav-btn.active { color: var(--amber); }
+
+  /* ── CARDS ───────────────────────────────────────────────────── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .card-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .8px;
+    text-transform: uppercase;
+    color: var(--smoke);
+    margin-bottom: 12px;
+  }
+
+  /* ── STAT GRID ───────────────────────────────────────────────── */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .stat-cell {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+  }
+  .stat-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+  .stat-value { font-size: 22px; font-weight: 700; color: var(--text); line-height: 1; }
+  .stat-value.amber { color: var(--amber); }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red   { color: var(--ember); }
+
+  /* ── SECTION TITLE ───────────────────────────────────────────── */
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin: 20px 0 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── FINANCE ROW ─────────────────────────────────────────────── */
+  .fin-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .fin-row:last-child { border-bottom: none; }
+  .fin-row .label { color: var(--text-muted); }
+  .fin-row .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .fin-row .val.pos { color: var(--green); }
+  .fin-row .val.neg { color: var(--ember); }
+
+  /* ── REPORT CARD ─────────────────────────────────────────────── */
+  .report-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .report-card:active { background: var(--bg-hover); }
+  .report-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .report-date { font-size: 13px; font-weight: 600; color: var(--text); }
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 20px;
+  }
+  .badge-day  { background: rgba(245,158,11,.15); color: var(--amber); }
+  .badge-night{ background: rgba(59,130,246,.15);  color: var(--blue); }
+  .badge-open { background: rgba(34,197,94,.15);  color: var(--green); }
+  .report-emp { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+  .report-total { font-size: 18px; font-weight: 700; color: var(--amber); }
+
+  /* ── MONTH TABS ──────────────────────────────────────────────── */
+  .month-tabs {
+    display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; margin-bottom: 16px;
+    scrollbar-width: none;
+  }
+  .month-tabs::-webkit-scrollbar { display: none; }
+  .month-tab {
+    flex-shrink: 0;
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .month-tab.active { background: var(--amber); border-color: var(--amber); color: #000; font-weight: 700; }
+
+  /* ── MODAL ───────────────────────────────────────────────────── */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.7);
+    z-index: 200; display: none; align-items: flex-end;
+  }
+  .overlay.open { display: flex; }
+  .sheet {
+    background: var(--bg-card);
+    border-radius: 20px 20px 0 0;
+    padding: 20px 20px calc(20px + var(--safe-b));
+    width: 100%;
+    max-height: 85dvh;
+    overflow-y: auto;
+  }
+  .sheet-handle {
+    width: 36px; height: 4px; border-radius: 2px;
+    background: var(--border); margin: 0 auto 16px;
+  }
+  .sheet-title { font-size: 17px; font-weight: 700; margin-bottom: 16px; }
+
+  /* ── ORDER ITEM ──────────────────────────────────────────────── */
+  .order-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+  .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .order-id { font-size: 12px; color: var(--smoke); }
+  .order-zone { font-size: 15px; font-weight: 700; }
+  .order-detail { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+  .order-emp {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 13px; color: var(--text-muted);
+  }
+
+  /* ── EMPLOYEE CARD ───────────────────────────────────────────── */
+  .emp-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    margin-bottom: 10px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .emp-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--amber-dim);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; color: var(--amber);
+    flex-shrink: 0;
+  }
+  .emp-name { font-size: 15px; font-weight: 600; }
+  .emp-stats { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── TOBACCO ─────────────────────────────────────────────────── */
+  .tobacco-cat {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .tobacco-cat-header {
+    padding: 12px 14px;
+    display: flex; justify-content: space-between; align-items: center;
+    cursor: pointer;
+  }
+  .tobacco-cat-title { font-size: 14px; font-weight: 600; }
+  .tobacco-cat-count {
+    font-size: 12px; font-weight: 600;
+    background: var(--amber-dim); color: var(--amber);
+    padding: 2px 8px; border-radius: 10px;
+  }
+  .tobacco-list { border-top: 1px solid var(--border); }
+  .tobacco-item {
+    padding: 10px 14px;
+    font-size: 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .tobacco-item:last-child { border-bottom: none; }
+
+  /* ── SHIFT STATUS BAR ────────────────────────────────────────── */
+  .shift-bar {
+    background: linear-gradient(135deg, rgba(34,197,94,.1), rgba(34,197,94,.05));
+    border: 1px solid rgba(34,197,94,.3);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .shift-dot {
+    width: 10px; height: 10px; border-radius: 50%; background: var(--green);
+    box-shadow: 0 0 8px var(--green); flex-shrink: 0;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .shift-bar.closed { background: rgba(239,68,68,.07); border-color: rgba(239,68,68,.3); }
+  .shift-bar.closed .shift-dot { background: var(--ember); box-shadow: 0 0 8px var(--ember); animation: none; }
+
+  /* ── LOADER ──────────────────────────────────────────────────── */
+  .loader {
+    display: flex; align-items: center; justify-content: center;
+    height: 80px; color: var(--smoke); font-size: 14px; gap: 10px;
+  }
+  .spin {
+    width: 18px; height: 18px; border: 2px solid var(--border);
+    border-top-color: var(--amber); border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── MONTH SUMMARY GRID ──────────────────────────────────────── */
+  .month-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .month-cell {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .month-cell-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+  .month-cell-value { font-size: 17px; font-weight: 700; }
+
+  /* ── EMPTY ───────────────────────────────────────────────────── */
+  .empty {
+    text-align: center; padding: 48px 20px;
+    color: var(--smoke); font-size: 14px;
+  }
+  .empty-icon { font-size: 36px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ── DASHBOARD ─────────────────────────────────────────────── -->
+  <div id="page-dashboard" class="page active">
+    <div id="dash-loading" class="loader"><div class="spin"></div>Загрузка…</div>
+    <div id="dash-content" style="display:none"></div>
+  </div>
+
+  <!-- ── ORDERS ────────────────────────────────────────────────── -->
+  <div id="page-orders" class="page">
+    <div id="orders-loading" class="loader"><div class="spin"></div>Загрузка…</div>
+    <div id="orders-content" style="display:none"></div>
+  </div>
+
+  <!-- ── FINANCE ───────────────────────────────────────────────── -->
+  <div id="page-finance" class="page">
+    <div id="fin-loading" class="loader"><div class="spin"></div>Загрузка…</div>
+    <div id="fin-content" style="display:none"></div>
+  </div>
+
+  <!-- ── TOBACCO ───────────────────────────────────────────────── -->
+  <div id="page-tobacco" class="page">
+    <div id="tob-loading" class="loader"><div class="spin"></div>Загрузка…</div>
+    <div id="tob-content" style="display:none"></div>
+  </div>
+
+  <!-- ── NAV ───────────────────────────────────────────────────── -->
+  <nav>
+    <button class="nav-btn active" onclick="nav('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+        <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+      </svg>
+      Обзор
+    </button>
+    <button class="nav-btn" onclick="nav('orders')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 8h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2v4l-4-4H9a1.994 1.994 0 0 1-1.414-.586m0 0L11 14h4a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2v4l.586-.586z"/>
+      </svg>
+      Кальяны
+    </button>
+    <button class="nav-btn" onclick="nav('finance')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+        <path d="M12 6v6l4 2"/>
+      </svg>
+      Финансы
+    </button>
+    <button class="nav-btn" onclick="nav('tobacco')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 18h18M3 14h14a2 2 0 0 1 2 2M3 10h12m0 0a4 4 0 0 1 4 4M15 10V6a3 3 0 0 0-3-3"/>
+      </svg>
+      Табаки
+    </button>
+  </nav>
+
+</div>
+
+<!-- ── REPORT SHEET ───────────────────────────────────────────── -->
+<div class="overlay" id="report-overlay" onclick="closeSheet()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div id="sheet-content"></div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────
+const API = 'http://localhost:8000'; // ← замени на URL твоего сервера
+
+// ── STATE ─────────────────────────────────────────────────────────
+let finMonths = [];
+let finCurrentMonth = null;
+let currentPage = 'dashboard';
+let dashLoaded = false;
+let finLoaded  = false;
+let tobLoaded  = false;
+
+// ── HELPERS ───────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function money(v) {
+  if (!v && v !== 0) return '—';
+  return Number(v).toLocaleString('ru-RU') + ' ₽';
+}
+
+async function api(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error(r.statusText);
+  return r.json();
+}
+
+// ── NAV ───────────────────────────────────────────────────────────
+function nav(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  $('page-' + page).classList.add('active');
+  event.currentTarget.classList.add('active');
+  currentPage = page;
+
+  if (page === 'dashboard' && !dashLoaded) loadDashboard();
+  if (page === 'orders')  loadOrders();
+  if (page === 'finance' && !finLoaded)  loadFinance();
+  if (page === 'tobacco' && !tobLoaded)  loadTobacco();
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────
+async function loadDashboard() {
+  dashLoaded = true;
+  try {
+    const d = await api('/api/dashboard');
+    renderDashboard(d);
+  } catch(e) {
+    $('dash-loading').innerHTML = '<span style="color:var(--ember)">Ошибка подключения к серверу</span>';
+  }
+}
+
+function renderDashboard(d) {
+  $('dash-loading').style.display = 'none';
+  $('dash-content').style.display = 'block';
+
+  const shift = d.active_shift;
+  const lr = d.last_report;
+  const cm = d.current_month;
+
+  const shiftBar = shift
+    ? `<div class="shift-bar">
+        <div class="shift-dot"></div>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--green)">Смена открыта</div>
+          <div style="font-size:12px;color:var(--text-muted)">С ${shift.opened_at?.slice(11,16) ?? '—'}</div>
+        </div>
+      </div>`
+    : `<div class="shift-bar closed">
+        <div class="shift-dot"></div>
+        <div style="font-size:14px;font-weight:600;color:var(--ember)">Смена закрыта</div>
+      </div>`;
+
+  const stats = `
+    <div class="stat-grid">
+      <div class="stat-cell">
+        <div class="stat-label">Активных кальянов</div>
+        <div class="stat-value amber">${d.active_orders}</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Сотрудников</div>
+        <div class="stat-value">${d.employee_count}</div>
+      </div>
+    </div>`;
+
+  let monthBlock = '';
+  if (cm) {
+    monthBlock = `
+      <div class="section-title">Текущий месяц</div>
+      <div class="card">
+        <div class="fin-row"><span class="label">Смен</span><span class="val">${cm.cnt}</span></div>
+        <div class="fin-row"><span class="label">Итого</span><span class="val pos">${money(cm.total)}</span></div>
+        <div class="fin-row"><span class="label">Кальяны</span><span class="val">${money(cm.hookahs)}</span></div>
+        <div class="fin-row"><span class="label">Бар</span><span class="val">${money(cm.bar)}</span></div>
+        <div class="fin-row"><span class="label">Пополнение/PS</span><span class="val">${money(cm.ps)}</span></div>
+      </div>`;
+  }
+
+  let lastBlock = '';
+  if (lr) {
+    lastBlock = `
+      <div class="section-title">Последний отчёт</div>
+      <div class="report-card" onclick="openReport(${JSON.stringify(lr).replace(/"/g,'&quot;')})">
+        <div class="report-meta">
+          <span class="report-date">${lr.report_date}</span>
+          <span class="badge ${lr.shift_type==='День'?'badge-day':'badge-night'}">${lr.shift_type}</span>
+        </div>
+        <div class="report-emp">${lr.employees}</div>
+        <div class="report-total">${money(lr.total)}</div>
+      </div>`;
+  }
+
+  $('dash-content').innerHTML = shiftBar + stats + monthBlock + lastBlock;
+}
+
+// ── ORDERS ────────────────────────────────────────────────────────
+async function loadOrders() {
+  $('orders-loading').style.display = 'flex';
+  $('orders-content').style.display = 'none';
+  try {
+    const d = await api('/api/orders?status=active');
+    renderOrders(d.orders);
+  } catch(e) {
+    $('orders-loading').innerHTML = '<span style="color:var(--ember)">Ошибка загрузки</span>';
+  }
+}
+
+function renderOrders(orders) {
+  $('orders-loading').style.display = 'none';
+  $('orders-content').style.display = 'block';
+
+  if (!orders.length) {
+    $('orders-content').innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">💨</div>
+        <div>Активных кальянов нет</div>
+      </div>`;
+    return;
+  }
+
+  const html = orders.map(o => `
+    <div class="order-item">
+      <div class="order-header">
+        <span class="order-id">#${o.id}</span>
+        <span class="badge badge-open">активен</span>
+      </div>
+      <div class="order-zone">${o.zone} · ${o.table_number}</div>
+      <div class="order-detail">🍃 ${o.flavor}</div>
+      <div class="order-emp">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+        </svg>
+        ${o.employee_name ?? 'Не назначен'}
+        <span style="margin-left:auto;font-size:11px">${o.created_at?.slice(11,16) ?? ''}</span>
+      </div>
+    </div>`).join('');
+
+  $('orders-content').innerHTML = `
+    <div class="section-title">Активные · ${orders.length}</div>
+    ${html}`;
+}
+
+// ── FINANCE ───────────────────────────────────────────────────────
+async function loadFinance() {
+  finLoaded = true;
+  try {
+    const d = await api('/api/finance/reports?limit=50');
+    finMonths = d.months;
+    finCurrentMonth = d.months[0] ?? null;
+    renderFinance(d.reports, d.months);
+  } catch(e) {
+    $('fin-loading').innerHTML = '<span style="color:var(--ember)">Ошибка загрузки</span>';
+  }
+}
+
+async function switchMonth(month) {
+  finCurrentMonth = month;
+  document.querySelectorAll('.month-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.m === month);
+  });
+  $('fin-reports').innerHTML = '<div class="loader"><div class="spin"></div>Загрузка…</div>';
+
+  const [reports, summary] = await Promise.all([
+    api(`/api/finance/reports?month=${month}&limit=30`).then(d => d.reports),
+    api(`/api/finance/month/${month}`)
+  ]);
+
+  renderMonthSummary(month, summary);
+  $('fin-reports').innerHTML = reports.map(reportCard).join('') || '<div class="empty"><div class="empty-icon">📋</div><div>Нет отчётов за этот месяц</div></div>';
+}
+
+function reportCard(r) {
+  return `<div class="report-card" onclick="openReport(${JSON.stringify(r).replace(/"/g,'&quot;')})">
+    <div class="report-meta">
+      <span class="report-date">${r.report_date}</span>
+      <span class="badge ${r.shift_type==='День'?'badge-day':'badge-night'}">${r.shift_type}</span>
+    </div>
+    <div class="report-emp">${r.employees}</div>
+    <div class="report-total">${money(r.total)}</div>
+  </div>`;
+}
+
+function renderMonthSummary(month, s) {
+  $('fin-month-summary').innerHTML = s.cnt ? `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-title">📆 ${month} — итого</div>
+      <div class="month-grid">
+        <div class="month-cell"><div class="month-cell-label">Смен</div><div class="month-cell-value">${s.cnt}</div></div>
+        <div class="month-cell"><div class="month-cell-label">Итого</div><div class="month-cell-value" style="color:var(--amber)">${money(s.total)}</div></div>
+        <div class="month-cell"><div class="month-cell-label">Безнал</div><div class="month-cell-value">${money(s.cashless)}</div></div>
+        <div class="month-cell"><div class="month-cell-label">Нал</div><div class="month-cell-value">${money(s.cash)}</div></div>
+        <div class="month-cell"><div class="month-cell-label">Кальяны</div><div class="month-cell-value">${money(s.hookah_total)}</div></div>
+        <div class="month-cell"><div class="month-cell-label">Бар</div><div class="month-cell-value">${money(s.bar_total)}</div></div>
+        <div class="month-cell"><div class="month-cell-label">Возвраты</div><div class="month-cell-value" style="color:var(--ember)">${money(s.refunds)}</div></div>
+        <div class="month-cell"><div class="month-cell-label">Бонусы</div><div class="month-cell-value">${money(s.bonuses)}</div></div>
+      </div>
+    </div>` : '';
+}
+
+function renderFinance(reports, months) {
+  $('fin-loading').style.display = 'none';
+  $('fin-content').style.display = 'block';
+
+  const tabs = months.map(m => `
+    <button class="month-tab ${m===months[0]?'active':''}" data-m="${m}" onclick="switchMonth('${m}')">${m}</button>`).join('');
+
+  $('fin-content').innerHTML = `
+    <div class="month-tabs">${tabs}</div>
+    <div id="fin-month-summary"></div>
+    <div class="section-title">Отчёты</div>
+    <div id="fin-reports">${reports.map(reportCard).join('')}</div>`;
+
+  if (months[0]) {
+    api(`/api/finance/month/${months[0]}`).then(s => renderMonthSummary(months[0], s));
+  }
+}
+
+// ── TOBACCO ───────────────────────────────────────────────────────
+async function loadTobacco() {
+  tobLoaded = true;
+  try {
+    const d = await api('/api/tobacco');
+    renderTobacco(d);
+  } catch(e) {
+    $('tob-loading').innerHTML = '<span style="color:var(--ember)">Ошибка загрузки</span>';
+  }
+}
+
+function renderTobacco(d) {
+  $('tob-loading').style.display = 'none';
+  $('tob-content').style.display = 'block';
+
+  const header = `
+    <div class="stat-grid" style="margin-bottom:16px">
+      <div class="stat-cell">
+        <div class="stat-label">Вкусов в наличии</div>
+        <div class="stat-value amber">${d.total}</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Категорий</div>
+        <div class="stat-value">${d.categories.length}</div>
+      </div>
+    </div>`;
+
+  const cats = d.categories.map(cat => `
+    <div class="tobacco-cat">
+      <div class="tobacco-cat-header" onclick="toggleCat(this)">
+        <span class="tobacco-cat-title">${cat.name}</span>
+        <span class="tobacco-cat-count">${cat.items.length}</span>
+      </div>
+      <div class="tobacco-list" style="display:none">
+        ${cat.items.map(i => `<div class="tobacco-item"><span>${i.name}</span></div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  $('tob-content').innerHTML = header + cats;
+}
+
+function toggleCat(el) {
+  const list = el.nextElementSibling;
+  list.style.display = list.style.display === 'none' ? 'block' : 'none';
+}
+
+// ── REPORT SHEET ──────────────────────────────────────────────────
+function openReport(r) {
+  if (typeof r === 'string') r = JSON.parse(r.replace(/&quot;/g, '"'));
+  $('sheet-content').innerHTML = `
+    <div class="sheet-title">${r.report_date} · ${r.shift_type}</div>
+    <div style="font-size:13px;color:var(--text-muted);margin-bottom:16px">${r.employees}</div>
+    <div class="fin-row"><span class="label">Итого</span><span class="val pos">${money(r.total)}</span></div>
+    <div class="fin-row"><span class="label">Безнал</span><span class="val">${money(r.cashless)}</span></div>
+    <div class="fin-row"><span class="label">Нал</span><span class="val">${money(r.cash)}</span></div>
+    <div class="fin-row"><span class="label">Эквайринг</span><span class="val">${money(r.acquiring)}</span></div>
+    <div class="fin-row"><span class="label">СБП</span><span class="val">${money(r.sbp)}</span></div>
+    <div class="fin-row"><span class="label">Бар</span><span class="val">${money(r.bar_total)}</span></div>
+    <div class="fin-row"><span class="label">Пополнение/PS</span><span class="val">${money(r.ps_total)}</span></div>
+    <div class="fin-row"><span class="label">Кальяны</span><span class="val">${money(r.hookah_total)}</span></div>
+    <div class="fin-row"><span class="label">Пробковый сбор</span><span class="val">${money(r.cork_total)}</span></div>
+    <div class="fin-row"><span class="label">Возвраты</span><span class="val neg">${money(r.refunds)}</span></div>
+    <div class="fin-row"><span class="label">Бонусы</span><span class="val">${money(r.bonuses)}</span></div>
+    ${r.expenses_text ? `<div class="fin-row"><span class="label">Расходы</span><span class="val" style="font-size:13px">${r.expenses_text}</span></div>` : ''}
+    <div class="fin-row"><span class="label">Закрыл</span><span class="val" style="font-weight:500">${r.closed_by||'—'}</span></div>
+    <div class="fin-row"><span class="label">Приняли</span><span class="val" style="font-weight:500">${r.accepted_by||'—'}</span></div>`;
+  $('report-overlay').classList.add('open');
+}
+
+function closeSheet() {
+  $('report-overlay').classList.remove('open');
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  // Telegram WebApp integration
+  if (window.Telegram?.WebApp) {
+    Telegram.WebApp.ready();
+    Telegram.WebApp.expand();
+    Telegram.WebApp.setHeaderColor('#0e0e0f');
+    Telegram.WebApp.setBackgroundColor('#0e0e0f');
+  }
+  loadDashboard();
+});
+</script>
+</body>
+</html>
