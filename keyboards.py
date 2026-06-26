@@ -1,5 +1,4 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 
 ORDER_ZONES = [
     ("std1", "Стандарт 1", ["7", "8", "9", "10"]),
@@ -50,6 +49,8 @@ ZONE_BY_CODE = {code: name for code, name, _ in ORDER_ZONES}
 PLACES_BY_ZONE = {code: places for code, _, places in ORDER_ZONES}
 TOBACCO_CATEGORY_BY_CODE = {code: name for code, name in TOBACCO_CATEGORIES}
 
+WEBAPP_URL = "https://valuezero1.github.io/index.html"
+
 
 def home_button():
     return InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")
@@ -68,33 +69,37 @@ def request_access_menu():
 
 
 def main_menu():
+    """Главное меню: только WebApp + смена."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔥 Новый кальян", callback_data="new_order")],
-            [InlineKeyboardButton(text="📋 Активные кальяны", callback_data="active_orders")],
+            [InlineKeyboardButton(
+                text="📊 Открыть панель управления",
+                web_app=WebAppInfo(url=WEBAPP_URL),
+            )],
             [InlineKeyboardButton(text="🟢 Смена", callback_data="shift_menu")],
-            [InlineKeyboardButton(text="🍃 Табаки в наличии", callback_data="tobacco_menu")],
         ]
     )
 
 
 def shift_menu():
+    """Меню смены: только открыть и закрыть."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="🟢 Открыть смену", callback_data="open_shift")],
             [InlineKeyboardButton(text="🔴 Закрыть смену", callback_data="close_shift")],
-            [InlineKeyboardButton(text="📊 Статистика", callback_data="shift_stats")],
             [home_button()],
         ]
     )
 
+
+# ── Остальные клавиатуры используются внутри бота (чеклист, заявки и т.д.) ──
 
 def zones_kb():
     rows = []
     for index in range(0, len(ORDER_ZONES), 2):
         row = [
             InlineKeyboardButton(text=name, callback_data=f"zone_{code}")
-            for code, name, _ in ORDER_ZONES[index : index + 2]
+            for code, name, _ in ORDER_ZONES[index: index + 2]
         ]
         rows.append(row)
     rows.append([home_button()])
@@ -107,7 +112,7 @@ def places_kb(zone_code):
     for index in range(0, len(places), 3):
         row = [
             InlineKeyboardButton(text=place, callback_data=f"place_{index + offset}")
-            for offset, place in enumerate(places[index : index + 3])
+            for offset, place in enumerate(places[index: index + 3])
         ]
         rows.append(row)
     rows.append([home_button()])

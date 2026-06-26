@@ -314,15 +314,43 @@ def get_orders(
 def create_order(body: OrderCreate):
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute("SELECT id FROM employees WHERE id=? AND active=1", (body.employee_id,))
-        if not cur.fetchone():
+        cur.execute("SELECT id, tg_id, name FROM employees WHERE id=? AND active=1", (body.employee_id,))
+        emp = cur.fetchone()
+        if not emp:
             raise HTTPException(404, "Сотрудник не найден")
         cur.execute(
             "INSERT INTO orders(table_number, zone, flavor, employee_id, status) VALUES (?, ?, ?, ?, 'active')",
             (body.table_number, body.zone, body.flavor, body.employee_id),
         )
         conn.commit()
-        return {"id": cur.lastrowid, "status": "active"}
+        order_id = cur.lastrowid
+        emp_tg = emp["tg_id"]
+
+    import threading
+    def _notify():
+        import asyncio
+        async def _send():
+            try:
+                from config import BOT_TOKEN
+                from aiogram import Bot
+                from keyboards import order_started_kb
+                bot = Bot(BOT_TOKEN)
+                await bot.send_message(
+                    emp_tg,
+                    f"🔥 Новый кальян\n"
+                    f"ID: {order_id}\n"
+                    f"Зона: {body.zone}\n"
+                    f"Номер: {body.table_number}\n"
+                    f"Вкус: {body.flavor}",
+                    reply_markup=order_started_kb(order_id),
+                )
+                await bot.session.close()
+            except Exception as e:
+                print(f"[API] Ошибка уведомления: {e}")
+        asyncio.run(_send())
+    threading.Thread(target=_notify, daemon=True).start()
+
+    return {"id": order_id, "status": "active"}
 
 
 @app.patch("/api/orders/{order_id}/close")
