@@ -257,6 +257,17 @@ def health():
     return {"ok": True}
 
 
+@app.get("/api/me")
+def me(user: dict = Depends(require_user)):
+    tg_id = int(user.get("id") or 0)
+    return {
+        "id": tg_id,
+        "first_name": user.get("first_name"),
+        "username": user.get("username"),
+        "is_admin": tg_id == ADMIN_ID,
+    }
+
+
 @app.get("/api/dashboard")
 def dashboard(user: dict = Depends(require_user)):
     with get_db() as conn:

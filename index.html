@@ -83,6 +83,7 @@ input{background:rgba(255,255,255,.075)!important;color:var(--text)!important;bo
 .pc-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.pc-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;min-height:138px;box-shadow:var(--shadow-sm);backdrop-filter:blur(24px);animation:rise .36s both;transition:transform .2s ease,border-color .2s ease}.pc-card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.22)}.pc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.pc-id{font-family:var(--font-d);font-size:27px;font-weight:700;line-height:.95}.pc-zone{font-size:9px;color:var(--muted);margin-top:5px}.pc-status{display:inline-flex;align-items:center;gap:5px;font-size:8px;font-weight:800;text-transform:uppercase;border-radius:999px;padding:5px 7px;background:rgba(255,255,255,.07);color:var(--muted2);white-space:nowrap}.pc-status::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}.pc-free{color:var(--green)}.pc-busy{color:var(--red-hot)}.pc-reserved{color:var(--blue)}.pc-issue{color:var(--amber)}.pc-meta{font-size:10px;color:var(--muted2);line-height:1.5;margin-top:12px}.pc-timer{font-family:var(--font-d);font-size:24px;color:#fff;margin-top:8px}.pc-comment{margin-top:9px;border-top:1px solid var(--line);padding-top:9px;font-size:10px;color:var(--muted)}
 .club-map{position:relative;width:100%;aspect-ratio:1.55;background:rgba(255,255,255,.045);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;overflow:hidden;box-shadow:var(--shadow-sm);backdrop-filter:blur(24px)}.club-map::before{content:'';position:absolute;inset:10px;border:1px solid rgba(255,255,255,.08);border-radius:6px}.map-seat{position:absolute;left:calc(var(--x) / var(--map-w) * 100%);top:calc(var(--y) / var(--map-h) * 100%);width:calc(var(--w) / var(--map-w) * 100%);height:calc(var(--h) / var(--map-h) * 100%);min-width:22px;min-height:22px;border-radius:6px;border:1px solid rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;font-family:var(--font-b);font-size:9px;font-weight:800;color:#fff;background:rgba(244,58,69,.72);box-shadow:0 8px 20px rgba(0,0,0,.28);transition:transform .18s ease,filter .18s ease}.map-seat:hover{transform:scale(1.05);z-index:2}.map-seat.free{background:rgba(74,222,128,.72);color:#06120a}.map-seat.reserved{background:rgba(116,166,255,.75)}.map-seat.issue{background:rgba(247,185,85,.8);color:#171002}.map-seat[data-wide="true"]{font-size:8px;line-height:1.2;text-align:center;padding:2px}
 .quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.qa-btn{border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.075);color:#fff;text-align:left;padding:14px;font-family:var(--font-b);cursor:pointer;box-shadow:var(--shadow-sm);transition:transform .18s ease,border-color .18s ease,background .18s ease}.qa-btn:hover{transform:translateY(-2px);border-color:rgba(244,58,69,.32);background:rgba(244,58,69,.13)}.qa-title{font-size:11px;font-weight:800}.qa-sub{font-size:9px;color:var(--muted);line-height:1.45;margin-top:6px}
+.admin-panel{display:grid;gap:8px;margin-bottom:12px;padding:14px;border:1px solid rgba(244,58,69,.22);background:rgba(244,58,69,.08);border-radius:8px}.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.admin-input,.admin-select{width:100%;padding:11px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.075);color:var(--text);font-family:var(--font-b);font-size:11px;outline:none}.admin-btn{border:1px solid rgba(244,58,69,.38);background:var(--red);color:#fff;border-radius:8px;padding:12px;font-family:var(--font-b);font-size:11px;font-weight:800;cursor:pointer}.admin-btn:active{transform:scale(.98)}.mini-danger{border:1px solid rgba(244,58,69,.34);background:rgba(244,58,69,.12);color:var(--red-hot);border-radius:7px;padding:6px 8px;font-family:var(--font-b);font-size:9px;font-weight:800;cursor:pointer;margin-left:8px}
 .state-card{padding:16px;border:1px solid rgba(244,58,69,.20);background:rgba(244,58,69,.08);border-radius:8px;color:var(--muted2);font-size:11px;line-height:1.6;margin-bottom:12px}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}@media (min-width:720px){body{background:#050506}#app{height:calc(100dvh - 48px);border-radius:28px}nav{bottom:24px;border-radius:0 0 28px 28px}}@media (max-width:390px){.brand-title{font-size:44px}.pc-grid,.ops-grid,.quick-actions{grid-template-columns:1fr}}@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style>
@@ -125,10 +126,6 @@ input{background:rgba(255,255,255,.075)!important;color:var(--text)!important;bo
       <div class="brand-title">Сервис клуба</div>
       <div class="brand-sub">Кальяны, табаки, активные заказы и быстрые действия для гостей в одном рабочем разделе.</div>
     </section>
-    <div class="quick-actions">
-      <button class="qa-btn" onclick="noOpen()"><div class="qa-title">Новый кальян</div><div class="qa-sub">Создать заказ, выбрать место, вкус и сотрудника.</div></button>
-      <button class="qa-btn" onclick="alert('Быстрый заказ бара можно подключить к API заказов еды и напитков.')"><div class="qa-title">Заказ бара</div><div class="qa-sub">Еда, напитки и допродажи для активной сессии.</div></button>
-    </div>
     <div class="sh">Активные кальяны</div>
     <div id="ord-l" class="loader"><div class="spin"></div>Загрузка…</div>
     <div id="ord-c" style="display:none"></div>
@@ -246,6 +243,7 @@ let timers = {}; // order_id -> {start, stage, interval}
 let pcFilter = 'all';
 let pcSearch = '';
 let clubData = null;
+let currentUser = { is_admin: false };
 
 const PC_STATUS = {
   free:     { label:'Свободен', cls:'pc-free' },
@@ -261,14 +259,8 @@ const CLUB_PCS = [
   { id:'PC-04', zone:'Bootcamp', status:'busy', client:'Команда 1', left:'00:12', order:'2 энергетика', note:'Скоро завершение времени' },
   { id:'PC-05', zone:'Bootcamp', status:'busy', client:'Даниил', left:'02:05', order:'Кальян в работе', note:'Проверить угли через 15 минут' },
   { id:'PC-06', zone:'Bootcamp', status:'free', client:'—', left:'—', order:'Свободен', note:'Можно посадить без ожидания' },
-  { id:'PC-07', zone:'Стандарт', status:'issue', client:'—', left:'—', order:'Недоступен', note:'Нет звука в гарнитуре' },
+  { id:'PC-07', zone:'Стандарт', status:'free', client:'—', left:'—', order:'Свободен', note:'Можно посадить без ожидания' },
   { id:'PC-08', zone:'Стандарт', status:'reserved', client:'Максим', left:'21:00', order:'Бронь + напитки', note:'Подготовить место заранее' },
-];
-
-const EQUIPMENT_ISSUES = [
-  { pc:'PC-07', title:'Нет звука в гарнитуре', priority:'Средний', owner:'Техник' },
-  { pc:'PC-04', title:'Низкий заряд геймпада', priority:'Низкий', owner:'Администратор' },
-  { pc:'PC-05', title:'Проверить температуру после сессии', priority:'Низкий', owner:'Смена' },
 ];
 
 function fallbackClubData() {
@@ -276,7 +268,6 @@ function fallbackClubData() {
     source: 'demo',
     updated_at: null,
     seats: CLUB_PCS,
-    issues: EQUIPMENT_ISSUES,
     counts: null,
   };
 }
@@ -337,7 +328,7 @@ function nav(btn) {
 
   // FAB visible only on service page
   const fab = $('fab-new-order');
-  if (fab) fab.style.display = page === 'service' ? 'flex' : 'none';
+  if (fab) fab.style.display = 'none';
 }
 
 function getClubData() {
@@ -382,7 +373,7 @@ function renderOpsSummary() {
     <div class="ops-card"><div class="ops-label">Свободные места</div><div class="ops-value" style="color:var(--green)">${c.free || 0}</div><div class="ops-note">Можно быстро посадить гостя.</div></div>
     <div class="ops-card"><div class="ops-label">Занято сейчас</div><div class="ops-value">${c.busy || 0}</div><div class="ops-note">Данные синхронизируются с Langame.</div></div>
     <div class="ops-card"><div class="ops-label">Брони сегодня</div><div class="ops-value" style="color:var(--blue)">${c.reserved || 0}</div><div class="ops-note">Проверь подготовку мест.</div></div>
-    <div class="ops-card"><div class="ops-label">Проблемы оборудования</div><div class="ops-value" style="color:var(--amber)">${c.issue || 0}</div><div class="ops-note">Нужен контроль смены.</div></div>
+    <div class="ops-card"><div class="ops-label">Всего мест</div><div class="ops-value" style="color:var(--muted2)">${c.total || 0}</div><div class="ops-note">ПК, PlayStation и VIP-зоны.</div></div>
   </div>`;
 }
 
@@ -394,20 +385,6 @@ function renderActiveClients() {
     ${active.map(pc => `<div class="fr">
       <span class="fl">${pc.id} · ${pc.zone}</span>
       <span class="fv">${pc.left || 'занято'}</span>
-    </div>`).join('')}
-  </div>`;
-}
-
-function renderIssuePreview() {
-  return `<div class="sh">Ближайшие действия</div>
-  <div class="quick-actions">
-    <button class="qa-btn" onclick="openClubFromAction('free')"><div class="qa-title">Посадить гостя</div><div class="qa-sub">Показать свободные компьютеры.</div></button>
-    <button class="qa-btn" onclick="openClubFromAction('issue')"><div class="qa-title">Проблемы ПК</div><div class="qa-sub">Открыть список неисправностей.</div></button>
-  </div>
-  <div class="card">
-    ${EQUIPMENT_ISSUES.slice(0,2).map(i => `<div class="fr">
-      <span class="fl">${i.pc} · ${i.title}</span>
-      <span class="fv" style="color:var(--amber)">${i.priority}</span>
     </div>`).join('')}
   </div>`;
 }
@@ -441,9 +418,6 @@ function renderClub() {
     ${renderOpsSummary()}
     ${renderClubMap(seatsAll)}
     <div class="quick-actions">
-      <button class="qa-btn" onclick="alert('Новая сессия: выберите свободный ПК и задайте время клиента.')"><div class="qa-title">Новая сессия</div><div class="qa-sub">Быстрый старт времени клиента.</div></button>
-      <button class="qa-btn" onclick="alert('Бронь: выберите компьютер, гостя и время прихода.')"><div class="qa-title">Создать бронь</div><div class="qa-sub">Зафиксировать место на вечер.</div></button>
-      <button class="qa-btn" onclick="alert('Заказ: еда, напитки, кальян и табаки для выбранного ПК.')"><div class="qa-title">Добавить заказ</div><div class="qa-sub">Привязать сервис к месту.</div></button>
       <button class="qa-btn" onclick="loadClub(true)"><div class="qa-title">Обновить зал</div><div class="qa-sub">Запросить свежие статусы Langame.</div></button>
     </div>
     <div class="pc-toolbar">
@@ -454,18 +428,11 @@ function renderClub() {
       ${filterBtn('free','Свободны')}
       ${filterBtn('busy','Заняты')}
       ${filterBtn('reserved','Бронь')}
-      ${filterBtn('issue','Проблемы')}
     </div>
     <div class="pc-grid">
       ${pcs.map(renderPcCard).join('') || '<div class="empty"><div class="empty-txt">По этому запросу ничего не найдено</div></div>'}
     </div>
-    <div class="sh">Проблемы оборудования</div>
-    <div class="card">
-      ${EQUIPMENT_ISSUES.map(i => `<div class="fr">
-        <span class="fl">${i.pc} · ${i.title}</span>
-        <span class="fv">${i.owner}</span>
-      </div>`).join('')}
-    </div>`;
+    `;
 }
 
 function formatClubTime(value) {
@@ -500,9 +467,21 @@ function renderPcCard(pc) {
   </div>`;
 }
 
-function loadService() {
+async function loadService() {
+  await loadMe();
   loadOrders();
   if (!loaded.tob) loadTob();
+}
+
+async function loadMe() {
+  if (loaded.me) return currentUser;
+  try {
+    currentUser = await req('/api/me');
+  } catch {
+    currentUser = { is_admin: false };
+  }
+  loaded.me = true;
+  return currentUser;
 }
 
 // ── DASHBOARD ────────────────────────────────────────────────────
@@ -596,7 +575,7 @@ function renderDash(d) {
     </div>`;
   }
 
-  $('dash-c').innerHTML = apiNotice + shiftBar + renderOpsSummary() + stats + monthBlock + lastBlock + renderActiveClients() + renderIssuePreview();
+  $('dash-c').innerHTML = apiNotice + shiftBar + renderOpsSummary() + stats + monthBlock + lastBlock + renderActiveClients();
 }
 
 // ── ORDERS ───────────────────────────────────────────────────────
@@ -939,6 +918,18 @@ function renderTop(t) {
 }
 
 // ── TOBACCO ──────────────────────────────────────────────────────
+const TOBACCO_CATEGORIES = [
+  ['sour_berries',  'Кислые ягоды'],
+  ['sweet_berries', 'Сладкие ягоды'],
+  ['sour_fruits',   'Кислые фрукты'],
+  ['sweet_fruits',  'Сладкие фрукты'],
+  ['herbal_fresh',  'Травяные и свежие'],
+  ['floral',        'Цветочные'],
+  ['desserts',      'Десертные и кондитерские'],
+  ['drinks',        'Напитки'],
+  ['mixes',         'Миксы и авторские вкусы'],
+];
+
 async function loadTob() {
   loaded.tob = true;
   try {
@@ -954,6 +945,7 @@ function renderTob(d) {
   $('tob-c').style.display = 'block';
 
   const stockLabel = { full:'Полная', half:'Половина', low:'Мало', empty:'Закончился' };
+  const adminPanel = currentUser.is_admin ? renderTobaccoAdminPanel() : '';
 
   // Count by stock
   let allItems = d.categories.flatMap(c => c.items);
@@ -992,12 +984,57 @@ function renderTob(d) {
             <div style="display:flex;align-items:center">
               <span class="stock-label">${stockLabel[st] || st}</span>
               <div class="stock-dot"></div>
+              ${currentUser.is_admin ? `<button class="mini-danger" onclick="deleteTobaccoItem(event, ${i.id})">Удалить</button>` : ''}
             </div>
           </div>`;
         }).join('')}
       </div>
     </div>`).join('');
-  $('tob-c').innerHTML = header + cats;
+  $('tob-c').innerHTML = adminPanel + header + (cats || '<div class="empty"><div class="empty-txt">Позиции пока не добавлены</div></div>');
+}
+
+function renderTobaccoAdminPanel() {
+  const options = TOBACCO_CATEGORIES
+    .map(([code, name]) => `<option value="${code}">${name}</option>`)
+    .join('');
+  return `<div class="admin-panel">
+    <div class="card-title" style="margin-bottom:2px;color:#fff">Управление позициями</div>
+    <input class="admin-input" id="tob-new-name" placeholder="Название позиции">
+    <div class="admin-grid">
+      <select class="admin-select" id="tob-new-category">${options}</select>
+      <input class="admin-input" id="tob-new-grams" type="number" min="0" placeholder="Граммы">
+    </div>
+    <button class="admin-btn" onclick="addTobaccoItem()">Добавить позицию</button>
+  </div>`;
+}
+
+async function addTobaccoItem() {
+  const name = $('tob-new-name')?.value.trim();
+  const category = $('tob-new-category')?.value || 'mixes';
+  const grams = Number($('tob-new-grams')?.value || 0);
+  if (!name) {
+    alert('Введите название позиции');
+    return;
+  }
+  try {
+    await send('/api/tobacco', 'POST', { name, category, grams, stock: 'full' });
+    loaded.tob = false;
+    await loadTob();
+  } catch {
+    alert('Добавлять позиции может только администратор');
+  }
+}
+
+async function deleteTobaccoItem(event, id) {
+  event.stopPropagation();
+  if (!confirm('Удалить позицию?')) return;
+  try {
+    await send(`/api/tobacco/${id}`, 'DELETE');
+    loaded.tob = false;
+    await loadTob();
+  } catch {
+    alert('Удалять позиции может только администратор');
+  }
 }
 
 function togCat(el) {

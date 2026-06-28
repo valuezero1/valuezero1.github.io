@@ -1,4 +1,5 @@
 import os
+import json
 import sqlite3
 
 os.makedirs("data", exist_ok=True)
@@ -132,7 +133,75 @@ def init_db():
 
     _ensure_column("tobacco", "category", "TEXT")
     _ensure_column("tobacco", "stock", "TEXT DEFAULT 'full'")
+    _seed_initial_data()
     conn.commit()
+
+
+def _seed_initial_data():
+    seed_path = "data/seed_data.json"
+    if not os.path.exists(seed_path):
+        return
+
+    with open(seed_path, encoding="utf-8") as seed_file:
+        seed = json.load(seed_file)
+
+    def table_empty(table: str) -> bool:
+        cursor.execute(f"SELECT COUNT(*) FROM {table}")
+        return cursor.fetchone()[0] == 0
+
+    if table_empty("employees"):
+        for row in seed.get("employees", []):
+            cursor.execute(
+                "INSERT OR IGNORE INTO employees(id, tg_id, name, active) VALUES (?, ?, ?, ?)",
+                (row.get("id"), row.get("tg_id"), row.get("name"), row.get("active", 1)),
+            )
+
+    if table_empty("finance_reports"):
+        for row in seed.get("finance_reports", []):
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO finance_reports(
+                    id, chat_id, message_id, employees, report_date, shift_type,
+                    total, total_lg, cashless, cash, acquiring, sbp,
+                    bar_total, ps_total, hookah_total, cork_total,
+                    refunds, cashbox_change, bonuses, expenses_text,
+                    closed_by, accepted_by, raw_text, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    row.get("id"), row.get("chat_id"), row.get("message_id"),
+                    row.get("employees"), row.get("report_date"), row.get("shift_type"),
+                    row.get("total"), row.get("total_lg"), row.get("cashless"), row.get("cash"),
+                    row.get("acquiring"), row.get("sbp"), row.get("bar_total"), row.get("ps_total"),
+                    row.get("hookah_total"), row.get("cork_total"), row.get("refunds"),
+                    row.get("cashbox_change"), row.get("bonuses"), row.get("expenses_text"),
+                    row.get("closed_by"), row.get("accepted_by"), row.get("raw_text"),
+                    row.get("created_at"),
+                ),
+            )
+
+    if table_empty("monthly_plans"):
+        for row in seed.get("monthly_plans", []):
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO monthly_plans(id, month, plan, set_by, created_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (row.get("id"), row.get("month"), row.get("plan"), row.get("set_by"), row.get("created_at")),
+            )
+
+    if table_empty("tobacco"):
+        for row in seed.get("tobacco", []):
+            cursor.execute(
+                """
+                INSERT OR IGNORE INTO tobacco(id, name, grams, category, stock)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    row.get("id"), row.get("name"), row.get("grams", 0),
+                    row.get("category"), row.get("stock", "full"),
+                ),
+            )
 
 
 def is_employee(tg_id: int) -> bool:
