@@ -49,7 +49,7 @@ ZONE_BY_CODE = {code: name for code, name, _ in ORDER_ZONES}
 PLACES_BY_ZONE = {code: places for code, _, places in ORDER_ZONES}
 TOBACCO_CATEGORY_BY_CODE = {code: name for code, name in TOBACCO_CATEGORIES}
 
-WEBAPP_URL = "https://valuezero1.github.io/index.html"
+WEBAPP_URL = "https://web-production-f2670.up.railway.app/"
 
 
 def home_button():
