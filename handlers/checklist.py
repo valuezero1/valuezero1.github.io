@@ -172,6 +172,15 @@ async def _finish_checklist(call: CallbackQuery, state: FSMContext, final_text: 
     conn.commit()
     shift_id = cursor.lastrowid
 
+    cursor.execute("SELECT id FROM employees WHERE tg_id=? AND active=1", (call.from_user.id,))
+    employee = cursor.fetchone()
+    if employee:
+        cursor.execute(
+            "INSERT INTO shift_employees(shift_id, employee_id) VALUES (?, ?)",
+            (shift_id, employee[0]),
+        )
+        conn.commit()
+
     issues_text = (
         "\n".join(f"• {title}: {text}" for title, text in issues)
         if issues

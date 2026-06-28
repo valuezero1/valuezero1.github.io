@@ -1,0 +1,7 @@
+.env
+*.pyc
+__pycache__/
+data/*.db
+data/*.db-*
+messages.html
+reports.txt

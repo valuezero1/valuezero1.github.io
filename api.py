@@ -2,15 +2,27 @@
 Hookah CRM — REST API для Telegram Mini App
 """
 
+import hashlib
+import hmac
+import json
+import os
 import re
 import sqlite3
+import time
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Optional
+from urllib.error import URLError
+from urllib.parse import parse_qsl
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
+
+from config import ADMIN_ID, BOT_TOKEN, LANGAME_DOMAIN, LANGAME_TOKEN
 
 DB_PATH = "data/hookah.db"
 
@@ -20,7 +32,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "X-Telegram-Init-Data"],
 )
 
 
@@ -28,12 +40,64 @@ app.add_middleware(
 
 @contextmanager
 def get_db():
+    os.makedirs("data", exist_ok=True)
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     try:
         yield conn
     finally:
         conn.close()
+
+
+def _validate_telegram_init_data(init_data: str) -> dict:
+    pairs = dict(parse_qsl(init_data, keep_blank_values=True))
+    received_hash = pairs.pop("hash", None)
+    if not received_hash:
+        raise HTTPException(401, "Missing Telegram hash")
+
+    try:
+        auth_date = int(pairs.get("auth_date", "0") or "0")
+    except ValueError as exc:
+        raise HTTPException(401, "Invalid Telegram auth date") from exc
+    if time.time() - auth_date > 24 * 60 * 60:
+        raise HTTPException(401, "Telegram session expired")
+
+    data_check_string = "\n".join(f"{key}={pairs[key]}" for key in sorted(pairs))
+    secret_key = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
+    calculated_hash = hmac.new(
+        secret_key,
+        data_check_string.encode(),
+        hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(calculated_hash, received_hash):
+        raise HTTPException(401, "Invalid Telegram signature")
+
+    try:
+        return json.loads(pairs["user"])
+    except (KeyError, json.JSONDecodeError) as exc:
+        raise HTTPException(401, "Invalid Telegram user") from exc
+
+
+def require_user(x_telegram_init_data: str = Header(default="", alias="X-Telegram-Init-Data")) -> dict:
+    user = _validate_telegram_init_data(x_telegram_init_data)
+    tg_id = int(user.get("id") or 0)
+    if tg_id == ADMIN_ID:
+        return user
+
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM employees WHERE tg_id=? AND active=1", (tg_id,))
+        if cur.fetchone():
+            return user
+
+    raise HTTPException(403, "Access denied")
+
+
+def require_admin(user: dict = Depends(require_user)) -> dict:
+    if int(user.get("id") or 0) != ADMIN_ID:
+        raise HTTPException(403, "Admin access required")
+    return user
 
 
 # ─── Models ──────────────────────────────────────────────────────────────────
@@ -67,10 +131,134 @@ def _clean_name(name: str) -> str:
     return name.strip()
 
 
+def _langame_domain() -> str:
+    domain = LANGAME_DOMAIN.strip()
+    return domain.removeprefix("https://").removeprefix("http://").strip("/")
+
+
+def _langame_proxy(request_type: str, club_id: Optional[int] = None) -> dict:
+    if not LANGAME_TOKEN:
+        raise HTTPException(503, "Langame token is not configured")
+
+    body = {
+        "type": request_type,
+        "domain": _langame_domain(),
+        "club_id": str(club_id or ""),
+    }
+    payload = urlencode(body).encode("utf-8")
+    request = Request(
+        "https://mapclub.langame.ru/proxy",
+        data=payload,
+        headers={
+            "Content-Type": "application/x-www-form-urlencoded",
+            "X-Request-token": LANGAME_TOKEN,
+        },
+        method="POST",
+    )
+
+    try:
+        with urlopen(request, timeout=8) as response:
+            raw = response.read().decode("utf-8")
+    except URLError as exc:
+        raise HTTPException(502, "Langame is unavailable") from exc
+
+    try:
+        data = json.loads(raw)
+        if isinstance(data, str):
+            data = json.loads(data)
+        return data
+    except json.JSONDecodeError as exc:
+        raise HTTPException(502, "Invalid Langame response") from exc
+
+
+def _club_zone(name: str, color: Optional[str]) -> str:
+    upper = name.upper()
+    if upper.startswith("TV"):
+        return "PlayStation"
+    if "VIP BOOTCAMP" in upper:
+        return "VIP Bootcamp"
+    if upper == "VIP PS":
+        return "VIP PS"
+
+    try:
+        number = int(name)
+    except ValueError:
+        return "Клуб"
+
+    if number in {1, 2, 3, 4, 26, 27, 28, 29}:
+        return "Duo"
+    if 5 <= number <= 10 or 40 <= number <= 42:
+        return "Standart"
+    if 11 <= number <= 19:
+        return "Trio"
+    if number == 20:
+        return "Solo"
+    if 21 <= number <= 34:
+        return "Bootcamp"
+    return color or "Клуб"
+
+
+def _normalize_langame_seats(schema: list[dict], statuses: list[dict]) -> list[dict]:
+    free_by_uuid = {
+        item.get("UUID"): bool(item.get("status"))
+        for item in statuses
+        if item.get("UUID")
+    }
+    seats: list[dict] = []
+    seen_names: set[str] = set()
+
+    for item in schema:
+        if item.get("display") != "tablet" or item.get("scheme_type") != "seat":
+            continue
+
+        name = str(item.get("text") or "").strip()
+        uuid = item.get("UUID")
+        if not name or not uuid or name in seen_names:
+            continue
+
+        seen_names.add(name)
+        is_free = free_by_uuid.get(uuid, False)
+        zone = _club_zone(name, item.get("color"))
+        seats.append(
+            {
+                "id": name if not name.isdigit() else f"PC-{name}",
+                "number": name,
+                "uuid": uuid,
+                "zone": zone,
+                "status": "free" if is_free else "busy",
+                "client": "—" if is_free else "Занято",
+                "left": "—",
+                "order": "Свободно" if is_free else "Идёт игровая сессия",
+                "note": "Данные Langame: свободно" if is_free else "Данные Langame: занято",
+                "color": item.get("color"),
+                "x": item.get("x", 0),
+                "y": item.get("y", 0),
+                "width": item.get("width", 1),
+                "height": item.get("height", 1),
+            }
+        )
+
+    def sort_key(seat: dict):
+        number = seat["number"]
+        return (0, int(number)) if number.isdigit() else (1, number)
+
+    return sorted(seats, key=sort_key)
+
+
 # ─── Dashboard ───────────────────────────────────────────────────────────────
 
+@app.get("/")
+def webapp():
+    return FileResponse("index.html")
+
+
+@app.get("/health")
+def health():
+    return {"ok": True}
+
+
 @app.get("/api/dashboard")
-def dashboard():
+def dashboard(user: dict = Depends(require_user)):
     with get_db() as conn:
         cur = conn.cursor()
 
@@ -119,6 +307,35 @@ def dashboard():
         }
 
 
+@app.get("/api/club/live")
+def club_live(user: dict = Depends(require_user)):
+    schema_response = _langame_proxy("clubSchema")
+    club_id = schema_response.get("chosen_club_id") or 1
+    status_response = _langame_proxy("pcStatus", club_id=club_id)
+
+    schema = schema_response.get("data") or []
+    statuses = status_response.get("data") or []
+    seats = _normalize_langame_seats(schema, statuses)
+    busy = sum(1 for seat in seats if seat["status"] == "busy")
+    free = sum(1 for seat in seats if seat["status"] == "free")
+
+    return {
+        "source": "langame",
+        "domain": _langame_domain(),
+        "club_id": club_id,
+        "updated_at": datetime.now().isoformat(timespec="seconds"),
+        "show_password_win": status_response.get("show_password_win"),
+        "counts": {
+            "total": len(seats),
+            "free": free,
+            "busy": busy,
+            "reserved": 0,
+            "issue": 0,
+        },
+        "seats": seats,
+    }
+
+
 # ─── Finance ─────────────────────────────────────────────────────────────────
 
 @app.get("/api/finance/reports")
@@ -126,6 +343,7 @@ def finance_reports(
     month: Optional[str] = Query(None),
     limit: int = Query(20, le=100),
     offset: int = Query(0),
+    user: dict = Depends(require_user),
 ):
     with get_db() as conn:
         cur = conn.cursor()
@@ -165,7 +383,7 @@ def finance_reports(
 
 
 @app.get("/api/finance/month/{month}")
-def finance_month(month: str):
+def finance_month(month: str, user: dict = Depends(require_user)):
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
@@ -194,7 +412,7 @@ def finance_month(month: str):
 # ─── Plan ────────────────────────────────────────────────────────────────────
 
 @app.get("/api/plan")
-def get_plan_api(month: Optional[str] = Query(None)):
+def get_plan_api(month: Optional[str] = Query(None), user: dict = Depends(require_user)):
     if not month:
         month = datetime.now().strftime("%Y-%m")
 
@@ -230,7 +448,7 @@ def get_plan_api(month: Optional[str] = Query(None)):
 # ─── Top employees ────────────────────────────────────────────────────────────
 
 @app.get("/api/top")
-def get_top_api(month: Optional[str] = Query(None)):
+def get_top_api(month: Optional[str] = Query(None), user: dict = Depends(require_user)):
     """
     Топ сотрудников по СРЕДНЕМУ значению выручки и бара за смену.
     Выручка смены делится поровну между сотрудниками.
@@ -285,6 +503,7 @@ def get_orders(
     status: Optional[str] = Query(None),
     employee_id: Optional[int] = Query(None),
     limit: int = Query(50, le=200),
+    user: dict = Depends(require_user),
 ):
     with get_db() as conn:
         cur = conn.cursor()
@@ -311,7 +530,7 @@ def get_orders(
 
 
 @app.post("/api/orders")
-def create_order(body: OrderCreate):
+def create_order(body: OrderCreate, user: dict = Depends(require_user)):
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute("SELECT id, tg_id, name FROM employees WHERE id=? AND active=1", (body.employee_id,))
@@ -354,7 +573,7 @@ def create_order(body: OrderCreate):
 
 
 @app.patch("/api/orders/{order_id}/close")
-def close_order(order_id: int):
+def close_order(order_id: int, user: dict = Depends(require_user)):
     with get_db() as conn:
         cur = conn.cursor()
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -368,7 +587,7 @@ def close_order(order_id: int):
 # ─── Employees ───────────────────────────────────────────────────────────────
 
 @app.get("/api/employees")
-def get_employees(active_only: bool = Query(True)):
+def get_employees(active_only: bool = Query(True), user: dict = Depends(require_user)):
     with get_db() as conn:
         cur = conn.cursor()
         if active_only:
@@ -385,7 +604,7 @@ def get_employees(active_only: bool = Query(True)):
 
 
 @app.get("/api/shifts/current")
-def current_shift():
+def current_shift(user: dict = Depends(require_user)):
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute("SELECT id, opened_at FROM shifts WHERE status='open' ORDER BY id DESC LIMIT 1")
@@ -428,7 +647,7 @@ STOCK_LABELS = {
 
 
 @app.get("/api/tobacco")
-def get_tobacco():
+def get_tobacco(user: dict = Depends(require_user)):
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute("SELECT id, name, grams, category, stock FROM tobacco ORDER BY category, name")
@@ -456,7 +675,7 @@ def get_tobacco():
 
 
 @app.post("/api/tobacco")
-def add_tobacco(body: TobaccoCreate):
+def add_tobacco(body: TobaccoCreate, user: dict = Depends(require_admin)):
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute(
@@ -468,7 +687,7 @@ def add_tobacco(body: TobaccoCreate):
 
 
 @app.patch("/api/tobacco/{tobacco_id}/stock")
-def update_tobacco_stock(tobacco_id: int, body: TobaccoStockUpdate):
+def update_tobacco_stock(tobacco_id: int, body: TobaccoStockUpdate, user: dict = Depends(require_admin)):
     if body.stock not in STOCK_LABELS:
         raise HTTPException(400, f"stock должен быть одним из: {list(STOCK_LABELS.keys())}")
     with get_db() as conn:
@@ -481,7 +700,7 @@ def update_tobacco_stock(tobacco_id: int, body: TobaccoStockUpdate):
 
 
 @app.delete("/api/tobacco/{tobacco_id}")
-def delete_tobacco(tobacco_id: int):
+def delete_tobacco(tobacco_id: int, user: dict = Depends(require_admin)):
     with get_db() as conn:
         cur = conn.cursor()
         cur.execute("DELETE FROM tobacco WHERE id=?", (tobacco_id,))
