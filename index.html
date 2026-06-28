@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>RAVE CRM</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Unbounded:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -512,14 +513,15 @@ async function loadDash() {
     renderDash(d);
     loaded.dash = true;
   } catch {
-    renderDash(fallbackDash());
+    renderDash(fallbackDash(window.Telegram?.WebApp?.initData ? 'api' : 'telegram'));
     loaded.dash = true;
   }
 }
 
-function fallbackDash() {
+function fallbackDash(reason = 'api') {
   return {
     apiOffline: true,
+    apiOfflineReason: reason,
     active_shift: null,
     last_report: null,
     current_month: null,
@@ -537,7 +539,9 @@ function renderDash(d) {
   const cm    = d.current_month;
 
   const apiNotice = d.apiOffline
-    ? `<div class="state-card">Данные бота недоступны вне Telegram. Операционный пульт клуба остаётся видимым, а заказы и финансы обновятся после запуска внутри WebApp.</div>`
+    ? `<div class="state-card">${d.apiOfflineReason === 'telegram'
+        ? 'Telegram WebApp не передал данные авторизации. Откройте приложение через кнопку в боте, а не обычной ссылкой в браузере.'
+        : 'Данные бота пока недоступны. Операционный пульт клуба остаётся видимым, а заказы и финансы обновятся после восстановления API.'}</div>`
     : '';
 
   const shiftBar = shift
