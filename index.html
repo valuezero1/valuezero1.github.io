@@ -132,7 +132,6 @@ input{background:rgba(255,255,255,.075)!important;color:var(--text)!important;bo
     <div class="sh">Кальяны и табаки</div>
     <div id="tob-l" class="loader"><div class="spin"></div>Загрузка…</div>
     <div id="tob-c" style="display:none"></div>
-    <button class="fab" id="fab-new-order" onclick="noOpen()" style="display:none" title="Новый кальян">+</button>
   </div>
 
   <nav>
@@ -177,59 +176,6 @@ input{background:rgba(255,255,255,.075)!important;color:var(--text)!important;bo
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-handle"></div>
     <div id="emp-body"></div>
-  </div>
-</div>
-
-<!-- NEW ORDER SHEET -->
-<div class="overlay" id="no-ov">
-  <div class="sheet" onclick="event.stopPropagation()">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title">🔥 Новый кальян</div>
-
-    <!-- Step 1: zone -->
-    <div id="no-step1" class="no-step active">
-      <div class="sheet-sub">Выберите зону</div>
-      <div id="no-zones" class="no-grid"></div>
-    </div>
-
-    <!-- Step 2: table -->
-    <div id="no-step2" class="no-step">
-      <div class="sheet-sub" id="no-step2-sub">Выберите место</div>
-      <div id="no-tables" class="no-grid"></div>
-      <button class="sheet-btn secondary" onclick="noBack(1)">← Назад</button>
-    </div>
-
-    <!-- Step 3: flavors -->
-    <div id="no-step3" class="no-step">
-      <div class="sheet-sub">Добавьте вкусы (сумма = 100%)</div>
-      <div id="no-sel-summary" class="sel-summary" style="display:none"></div>
-      <div id="no-flavor-search-wrap" style="margin-bottom:10px">
-        <input id="no-flavor-search" type="text" placeholder="🔍 Поиск вкуса…"
-          oninput="noFilterFlavors()"
-          style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);
-                 background:var(--card2);color:var(--text);font-size:13px;outline:none">
-      </div>
-      <div id="no-flavors" style="max-height:280px;overflow-y:auto"></div>
-      <div id="no-pct-warn" class="no-pct-warn" style="display:none">Сумма процентов должна быть 100%</div>
-      <button class="sheet-btn primary" id="no-flavors-next" onclick="noStep(4)" disabled>Далее →</button>
-      <button class="sheet-btn secondary" onclick="noBack(2)">← Назад</button>
-    </div>
-
-    <!-- Step 4: employee -->
-    <div id="no-step4" class="no-step">
-      <div class="sheet-sub">Назначьте сотрудника</div>
-      <div id="no-flavor-result" class="sel-summary" style="margin-bottom:12px"></div>
-      <div id="no-employees"></div>
-      <button class="sheet-btn secondary" onclick="noBack(3)">← Назад</button>
-    </div>
-
-    <!-- Step 5: confirm -->
-    <div id="no-step5" class="no-step">
-      <div class="sheet-sub">Проверьте заказ</div>
-      <div id="no-confirm-body" style="margin-bottom:16px"></div>
-      <button class="sheet-btn primary" id="no-submit" onclick="noSubmit()">✅ Создать кальян</button>
-      <button class="sheet-btn secondary" onclick="noBack(4)">← Назад</button>
-    </div>
   </div>
 </div>
 
@@ -325,10 +271,6 @@ function nav(btn) {
   if (page === 'club')       loadClub();
   if (page === 'service')    loadService();
   if (page === 'finance' && !loaded.fin) loadFin();
-
-  // FAB visible only on service page
-  const fab = $('fab-new-order');
-  if (fab) fab.style.display = 'none';
 }
 
 function getClubData() {
@@ -1072,201 +1014,6 @@ async function openEmpHistory(emp) {
   }
 }
 
-// ── NEW ORDER ─────────────────────────────────────────────────────────────────
-
-const ORDER_ZONES = [
-  {code:"std1",  name:"Стандарт 1",  tables:["7","8","9","10"]},
-  {code:"std2",  name:"Стандарт 2",  tables:["40","41","42"]},
-  {code:"boot1", name:"Буткемп 1",   tables:["21","22","23","24","25"]},
-  {code:"boot2", name:"Буткемп 2",   tables:["30","31","32","33","34"]},
-  {code:"duo1",  name:"Дуо 1",       tables:["1","2"]},
-  {code:"duo2",  name:"Дуо 2",       tables:["3","4"]},
-  {code:"duo3",  name:"Дуо 3",       tables:["26","27"]},
-  {code:"duo4",  name:"Дуо 4",       tables:["28","29"]},
-  {code:"trio1", name:"Трио 1",      tables:["11","12","13"]},
-  {code:"trio2", name:"Трио 2",      tables:["14","15","16"]},
-  {code:"trio3", name:"Трио 3",      tables:["17","18","19"]},
-  {code:"solo",  name:"Соло",        tables:["20"]},
-  {code:"vip_boot", name:"VIP-буткемп", tables:["VIP-буткемп"]},
-  {code:"ps1",   name:"Пс1",         tables:["Пс1"]},
-  {code:"ps2",   name:"Пс2",         tables:["Пс2"]},
-  {code:"ps3",   name:"Пс3",         tables:["Пс3"]},
-  {code:"ps4",   name:"Пс4",         tables:["Пс4"]},
-  {code:"ps_vip",name:"Пс VIP",      tables:["Пс VIP"]},
-];
-
-// State
-let noState = {};
-let noFlavorsAll = []; // [{id, name, category}]
-
-async function noOpen() {
-  noState = { zone: null, table: null, flavors: {}, employeeId: null, employeeName: null };
-  noStep(1);
-
-  // Build zones
-  $('no-zones').innerHTML = ORDER_ZONES.map(z =>
-    `<div class="no-btn" onclick="noSelectZone('${z.code}','${z.name}')">${z.name}</div>`
-  ).join('');
-
-  // Load flavors if not yet
-  if (!noFlavorsAll.length) {
-    try {
-      const d = await req('/api/tobacco');
-      noFlavorsAll = d.categories.flatMap(cat =>
-        cat.items
-          .filter(i => i.stock !== 'empty')
-          .map(i => ({id: i.id, name: i.name, cat: cat.name}))
-      );
-    } catch {}
-  }
-
-  // Load employees
-  try {
-    const d = await req('/api/employees');
-    $('no-employees').innerHTML = d.employees.map(e =>
-      `<div class="no-btn" style="text-align:left;padding:13px"
-        onclick="noSelectEmp(${e.id},'${e.name.replace(/'/g,"\\'")}')">
-        ${e.name}
-      </div>`
-    ).join('');
-  } catch {}
-
-  openSheet('no-ov');
-}
-
-function noStep(n) {
-  document.querySelectorAll('.no-step').forEach(s => s.classList.remove('active'));
-  $(`no-step${n}`).classList.add('active');
-  noState.step = n;
-}
-
-function noBack(to) { noStep(to); }
-
-function noSelectZone(code, name) {
-  noState.zone = name;
-  const zone = ORDER_ZONES.find(z => z.code === code);
-  $('no-step2-sub').textContent = `Место в зоне: ${name}`;
-  $('no-tables').innerHTML = zone.tables.map(t =>
-    `<div class="no-btn" onclick="noSelectTable('${t}')">${t}</div>`
-  ).join('');
-  noStep(2);
-}
-
-function noSelectTable(t) {
-  noState.table = t;
-  noState.flavors = {};
-  noRenderFlavors();
-  noUpdateFlavorSummary();
-  noStep(3);
-}
-
-function noFilterFlavors() {
-  noRenderFlavors($('no-flavor-search').value.trim().toLowerCase());
-}
-
-function noRenderFlavors(filter = '') {
-  const list = filter
-    ? noFlavorsAll.filter(f => f.name.toLowerCase().includes(filter))
-    : noFlavorsAll;
-
-  $('no-flavors').innerHTML = list.map(f => {
-    const pct = noState.flavors[f.id]?.pct || 0;
-    return `<div class="no-flavor-row" id="flrow-${f.id}">
-      <div class="no-flavor-name">${f.name}<br>
-        <span style="font-size:10px;color:var(--muted2)">${f.cat}</span>
-      </div>
-      <div class="no-pct-wrap">
-        <div class="no-pct-btn" onclick="noChangePct(${f.id},'${f.name.replace(/'/g,"\\'")}', -10)">−</div>
-        <div class="no-pct-val" id="flpct-${f.id}">${pct > 0 ? pct+'%' : '—'}</div>
-        <div class="no-pct-btn" onclick="noChangePct(${f.id},'${f.name.replace(/'/g,"\\'")}', +10)">+</div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-function noChangePct(id, name, delta) {
-  const cur = noState.flavors[id]?.pct || 0;
-  const newPct = Math.max(0, Math.min(100, cur + delta));
-
-  if (newPct === 0) {
-    delete noState.flavors[id];
-  } else {
-    noState.flavors[id] = { name, pct: newPct };
-  }
-
-  // Update just this row's display
-  const el = $(`flpct-${id}`);
-  if (el) el.textContent = newPct > 0 ? newPct + '%' : '—';
-
-  noUpdateFlavorSummary();
-}
-
-function noUpdateFlavorSummary() {
-  const entries = Object.values(noState.flavors);
-  const total = entries.reduce((s, f) => s + f.pct, 0);
-  const ok = total === 100 && entries.length > 0;
-
-  const summaryEl = $('no-sel-summary');
-  const warnEl = $('no-pct-warn');
-  const nextBtn = $('no-flavors-next');
-
-  if (entries.length === 0) {
-    summaryEl.style.display = 'none';
-    warnEl.style.display = 'none';
-  } else {
-    summaryEl.style.display = 'block';
-    summaryEl.textContent = entries.map(f => `${f.name} ${f.pct}%`).join(' / ') + ` = ${total}%`;
-    warnEl.style.display = ok ? 'none' : 'block';
-  }
-
-  nextBtn.disabled = !ok;
-}
-
-function noSelectEmp(id, name) {
-  noState.employeeId = id;
-  noState.employeeName = name;
-
-  // Highlight selected
-  document.querySelectorAll('#no-employees .no-btn').forEach(b => b.classList.remove('sel'));
-  event.target.closest('.no-btn').classList.add('sel');
-
-  // Build flavor string
-  const flavorStr = Object.values(noState.flavors)
-    .map(f => f.pct < 100 ? `${f.name} ${f.pct}%` : f.name)
-    .join(' / ');
-  noState.flavorStr = flavorStr;
-
-  $('no-flavor-result').textContent = `🍃 ${flavorStr}`;
-  $('no-confirm-body').innerHTML = `
-    <div class="fr"><span class="fl">Зона</span><span class="fv">${noState.zone}</span></div>
-    <div class="fr"><span class="fl">Место</span><span class="fv">${noState.table}</span></div>
-    <div class="fr"><span class="fl">Вкус</span><span class="fv" style="font-size:12px">${flavorStr}</span></div>
-    <div class="fr"><span class="fl">Сотрудник</span><span class="fv">${name}</span></div>
-  `;
-  noStep(5);
-}
-
-async function noSubmit() {
-  const btn = $('no-submit');
-  btn.disabled = true;
-  btn.textContent = '⏳ Создаём…';
-  try {
-    await send('/api/orders', 'POST', {
-      table_number: noState.table,
-      zone:         noState.zone,
-      flavor:       noState.flavorStr,
-      employee_id:  noState.employeeId,
-    });
-    closeSheet('no-ov');
-    loaded.dash = false;
-    loadOrders();
-  } catch (e) {
-    btn.disabled = false;
-    btn.textContent = '✅ Создать кальян';
-    alert('Ошибка: ' + e.message);
-  }
-}
-
 // ── INIT ─────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   if (window.Telegram?.WebApp) {
@@ -1276,8 +1023,6 @@ window.addEventListener('DOMContentLoaded', () => {
     Telegram.WebApp.setBackgroundColor('#0a0a0a');
   }
   $('page-dashboard').classList.add('visible');
-  const fab = $('fab-new-order');
-  if (fab) fab.style.display = 'none';
   loadDash();
 });
 </script>
