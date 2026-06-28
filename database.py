@@ -56,6 +56,48 @@ def init_db():
 
     cursor.execute(
         """
+        CREATE TABLE IF NOT EXISTS food_items(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            price INTEGER DEFAULT 0,
+            cook_minutes INTEGER DEFAULT 10,
+            active INTEGER DEFAULT 1,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS food_orders(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            item_id INTEGER,
+            item_name TEXT NOT NULL,
+            table_number TEXT,
+            employee_id INTEGER,
+            status TEXT DEFAULT 'active',
+            cook_minutes INTEGER DEFAULT 10,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            ready_at TEXT,
+            closed_at TEXT
+        )
+        """
+    )
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS tobacco_mixes(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            recipe TEXT NOT NULL,
+            note TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
+    cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS shifts(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             opened_at TEXT,
@@ -156,29 +198,50 @@ def _seed_initial_data():
                 (row.get("id"), row.get("tg_id"), row.get("name"), row.get("active", 1)),
             )
 
-    if table_empty("finance_reports"):
-        for row in seed.get("finance_reports", []):
-            cursor.execute(
-                """
-                INSERT OR IGNORE INTO finance_reports(
-                    id, chat_id, message_id, employees, report_date, shift_type,
-                    total, total_lg, cashless, cash, acquiring, sbp,
-                    bar_total, ps_total, hookah_total, cork_total,
-                    refunds, cashbox_change, bonuses, expenses_text,
-                    closed_by, accepted_by, raw_text, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    row.get("id"), row.get("chat_id"), row.get("message_id"),
-                    row.get("employees"), row.get("report_date"), row.get("shift_type"),
-                    row.get("total"), row.get("total_lg"), row.get("cashless"), row.get("cash"),
-                    row.get("acquiring"), row.get("sbp"), row.get("bar_total"), row.get("ps_total"),
-                    row.get("hookah_total"), row.get("cork_total"), row.get("refunds"),
-                    row.get("cashbox_change"), row.get("bonuses"), row.get("expenses_text"),
-                    row.get("closed_by"), row.get("accepted_by"), row.get("raw_text"),
-                    row.get("created_at"),
-                ),
-            )
+    for row in seed.get("finance_reports", []):
+        cursor.execute(
+            """
+            INSERT INTO finance_reports(
+                chat_id, message_id, employees, report_date, shift_type,
+                total, total_lg, cashless, cash, acquiring, sbp,
+                bar_total, ps_total, hookah_total, cork_total,
+                refunds, cashbox_change, bonuses, expenses_text,
+                closed_by, accepted_by, raw_text, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(chat_id, message_id) DO UPDATE SET
+                employees=excluded.employees,
+                report_date=excluded.report_date,
+                shift_type=excluded.shift_type,
+                total=excluded.total,
+                total_lg=excluded.total_lg,
+                cashless=excluded.cashless,
+                cash=excluded.cash,
+                acquiring=excluded.acquiring,
+                sbp=excluded.sbp,
+                bar_total=excluded.bar_total,
+                ps_total=excluded.ps_total,
+                hookah_total=excluded.hookah_total,
+                cork_total=excluded.cork_total,
+                refunds=excluded.refunds,
+                cashbox_change=excluded.cashbox_change,
+                bonuses=excluded.bonuses,
+                expenses_text=excluded.expenses_text,
+                closed_by=excluded.closed_by,
+                accepted_by=excluded.accepted_by,
+                raw_text=excluded.raw_text,
+                created_at=excluded.created_at
+            """,
+            (
+                row.get("chat_id"), row.get("message_id"),
+                row.get("employees"), row.get("report_date"), row.get("shift_type"),
+                row.get("total"), row.get("total_lg"), row.get("cashless"), row.get("cash"),
+                row.get("acquiring"), row.get("sbp"), row.get("bar_total"), row.get("ps_total"),
+                row.get("hookah_total"), row.get("cork_total"), row.get("refunds"),
+                row.get("cashbox_change"), row.get("bonuses"), row.get("expenses_text"),
+                row.get("closed_by"), row.get("accepted_by"), row.get("raw_text"),
+                row.get("created_at"),
+            ),
+        )
 
     if table_empty("monthly_plans"):
         for row in seed.get("monthly_plans", []):

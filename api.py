@@ -10,7 +10,7 @@ import re
 import sqlite3
 import time
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from urllib.error import URLError
 from urllib.parse import parse_qsl
@@ -120,6 +120,24 @@ class TobaccoStockUpdate(BaseModel):
     stock: str            # full | half | low | empty
 
 
+class FoodItemCreate(BaseModel):
+    name: str
+    price: int = 0
+    cook_minutes: int = 10
+
+
+class FoodOrderCreate(BaseModel):
+    item_id: int
+    table_number: str
+    employee_id: int
+
+
+class MixCreate(BaseModel):
+    name: str
+    recipe: str
+    note: str = ''
+
+
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 def _clean_name(name: str) -> str:
@@ -129,6 +147,37 @@ def _clean_name(name: str) -> str:
         parts = name.split(maxsplit=1)
         name = parts[1] if len(parts) > 1 else name
     return name.strip()
+
+
+def _send_delayed_food_reminder(emp_tg: int | None, employee_name: str, item_name: str, table_number: str, minutes: int):
+    if not emp_tg:
+        return
+
+    import threading
+
+    def _notify():
+        import asyncio
+
+        async def _send():
+            await asyncio.sleep(max(minutes, 0) * 60)
+            try:
+                from aiogram import Bot
+                bot = Bot(BOT_TOKEN)
+                await bot.send_message(
+                    emp_tg,
+                    f'Заказ еды готов к выдаче\n'
+                    f'Позиция: {item_name}\n'
+                    f'Место: {table_number}\n'
+                    f'Сотрудник: {employee_name}\n'
+                    f'Нужно вынести гостю.',
+                )
+                await bot.session.close()
+            except Exception as e:
+                print(f'[API] Ошибка напоминания по еде: {e}')
+
+        asyncio.run(_send())
+
+    threading.Thread(target=_notify, daemon=True).start()
 
 
 def _langame_domain() -> str:
@@ -717,5 +766,139 @@ def delete_tobacco(tobacco_id: int, user: dict = Depends(require_admin)):
         cur.execute("DELETE FROM tobacco WHERE id=?", (tobacco_id,))
         if cur.rowcount == 0:
             raise HTTPException(404, "Не найдено")
+        conn.commit()
+        return {"ok": True}
+
+
+@app.get("/api/food/items")
+def get_food_items(user: dict = Depends(require_user)):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT id, name, price, cook_minutes, active
+            FROM food_items
+            WHERE active=1
+            ORDER BY name
+            """
+        )
+        return {"items": [dict(r) for r in cur.fetchall()]}
+
+
+@app.post("/api/food/items")
+def add_food_item(body: FoodItemCreate, user: dict = Depends(require_admin)):
+    if body.cook_minutes < 1:
+        raise HTTPException(400, "cook_minutes must be positive")
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO food_items(name, price, cook_minutes, active) VALUES (?, ?, ?, 1)",
+            (body.name.strip(), body.price, body.cook_minutes),
+        )
+        conn.commit()
+        return {"id": cur.lastrowid}
+
+
+@app.delete("/api/food/items/{item_id}")
+def delete_food_item(item_id: int, user: dict = Depends(require_admin)):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("UPDATE food_items SET active=0 WHERE id=?", (item_id,))
+        if cur.rowcount == 0:
+            raise HTTPException(404, "Not found")
+        conn.commit()
+        return {"ok": True}
+
+
+@app.get("/api/food/orders")
+def get_food_orders(status: Optional[str] = Query("active"), user: dict = Depends(require_user)):
+    with get_db() as conn:
+        cur = conn.cursor()
+        where = "WHERE fo.status=?" if status else ""
+        params = [status] if status else []
+        cur.execute(
+            f"""
+            SELECT fo.id, fo.item_id, fo.item_name, fo.table_number, fo.employee_id,
+                   fo.status, fo.cook_minutes, fo.created_at, fo.ready_at,
+                   e.name as employee_name
+            FROM food_orders fo
+            LEFT JOIN employees e ON e.id=fo.employee_id
+            {where}
+            ORDER BY fo.id DESC
+            LIMIT 100
+            """,
+            params,
+        )
+        return {"orders": [dict(r) for r in cur.fetchall()]}
+
+
+@app.post("/api/food/orders")
+def create_food_order(body: FoodOrderCreate, user: dict = Depends(require_user)):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, name, price, cook_minutes FROM food_items WHERE id=? AND active=1", (body.item_id,))
+        item = cur.fetchone()
+        if not item:
+            raise HTTPException(404, "Food item not found")
+        cur.execute("SELECT id, tg_id, name FROM employees WHERE id=? AND active=1", (body.employee_id,))
+        emp = cur.fetchone()
+        if not emp:
+            raise HTTPException(404, "Employee not found")
+
+        minutes = int(item["cook_minutes"] or 10)
+        ready_at = (datetime.now() + timedelta(minutes=minutes)).strftime("%Y-%m-%d %H:%M:%S")
+        cur.execute(
+            """
+            INSERT INTO food_orders(item_id, item_name, table_number, employee_id, status, cook_minutes, ready_at)
+            VALUES (?, ?, ?, ?, 'active', ?, ?)
+            """,
+            (item["id"], item["name"], body.table_number.strip(), emp["id"], minutes, ready_at),
+        )
+        conn.commit()
+        order_id = cur.lastrowid
+
+        _send_delayed_food_reminder(emp["tg_id"], emp["name"], item["name"], body.table_number, minutes)
+        return {"id": order_id, "ready_at": ready_at}
+
+
+@app.patch("/api/food/orders/{order_id}/close")
+def close_food_order(order_id: int, user: dict = Depends(require_user)):
+    with get_db() as conn:
+        cur = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cur.execute("UPDATE food_orders SET status='closed', closed_at=? WHERE id=?", (now, order_id))
+        if cur.rowcount == 0:
+            raise HTTPException(404, "Not found")
+        conn.commit()
+        return {"ok": True}
+
+
+@app.get("/api/mixes")
+def get_mixes(user: dict = Depends(require_user)):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, name, recipe, note, created_at FROM tobacco_mixes ORDER BY name")
+        return {"mixes": [dict(r) for r in cur.fetchall()]}
+
+
+@app.post("/api/mixes")
+def add_mix(body: MixCreate, user: dict = Depends(require_admin)):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO tobacco_mixes(name, recipe, note) VALUES (?, ?, ?)",
+            (body.name.strip(), body.recipe.strip(), body.note.strip()),
+        )
+        conn.commit()
+        return {"id": cur.lastrowid}
+
+
+@app.delete("/api/mixes/{mix_id}")
+def delete_mix(mix_id: int, user: dict = Depends(require_admin)):
+    with get_db() as conn:
+        cur = conn.cursor()
+        cur.execute("DELETE FROM tobacco_mixes WHERE id=?", (mix_id,))
+        if cur.rowcount == 0:
+            raise HTTPException(404, "Not found")
         conn.commit()
         return {"ok": True}

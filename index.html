@@ -110,6 +110,20 @@ input{background:rgba(255,255,255,.075)!important;color:var(--text)!important;bo
     <div id="club-c"></div>
   </div>
 
+  <div id="page-memo" class="page">
+    <section class="brand-hero">
+      <div class="brand-kicker">Rave by Buster</div>
+      <div class="brand-title">Памятка</div>
+      <div class="brand-sub">База знаний по кальянам: табаки, наличие, категории и готовые проверенные миксы для быстрых рекомендаций гостям.</div>
+    </section>
+    <div class="sh">Кальяны · Табаки</div>
+    <div id="tob-l" class="loader"><div class="spin"></div>Загрузка…</div>
+    <div id="tob-c" style="display:none"></div>
+    <div class="sh">Готовые проверенные миксы</div>
+    <div id="mix-l" class="loader"><div class="spin"></div>Загрузка…</div>
+    <div id="mix-c" style="display:none"></div>
+  </div>
+
   <div id="page-finance" class="page">
     <section class="brand-hero">
       <div class="brand-kicker">Rave by Buster</div>
@@ -124,14 +138,19 @@ input{background:rgba(255,255,255,.075)!important;color:var(--text)!important;bo
     <section class="brand-hero">
       <div class="brand-kicker">Rave by Buster</div>
       <div class="brand-title">Сервис клуба</div>
-      <div class="brand-sub">Кальяны, табаки, активные заказы и быстрые действия для гостей в одном рабочем разделе.</div>
+      <div class="brand-sub">Кальяны и заказы еды в одном рабочем экране: создать, назначить сотрудника, запустить таймер и закрыть задачу.</div>
     </section>
+    <div class="quick-actions">
+      <button class="qa-btn" onclick="openHookahSheet()"><div class="qa-title">Создать кальян</div><div class="qa-sub">Место, ответственный и ручной ввод вкуса.</div></button>
+      <button class="qa-btn" onclick="openFoodSheet()"><div class="qa-title">Заказ еды</div><div class="qa-sub">Позиция из меню и таймер готовки.</div></button>
+    </div>
     <div class="sh">Активные кальяны</div>
     <div id="ord-l" class="loader"><div class="spin"></div>Загрузка…</div>
     <div id="ord-c" style="display:none"></div>
-    <div class="sh">Кальяны и табаки</div>
-    <div id="tob-l" class="loader"><div class="spin"></div>Загрузка…</div>
-    <div id="tob-c" style="display:none"></div>
+    <div class="sh">Заказы еды</div>
+    <div id="food-l" class="loader"><div class="spin"></div>Загрузка…</div>
+    <div id="food-c" style="display:none"></div>
+    <div id="food-admin"></div>
   </div>
 
   <nav>
@@ -155,6 +174,12 @@ input{background:rgba(255,255,255,.075)!important;color:var(--text)!important;bo
         <path d="M2 17l10 5 10-5M2 12l10 5 10-5"/>
       </svg>Сервис
     </button>
+    <button class="nb" data-page="memo" onclick="nav(this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+        <path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/>
+      </svg>Памятка
+    </button>
     <button class="nb" data-page="finance" onclick="nav(this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
         <path d="M3 3v18h18"/><path d="M18 9l-5 5-4-4-3 3"/>
@@ -176,6 +201,37 @@ input{background:rgba(255,255,255,.075)!important;color:var(--text)!important;bo
   <div class="sheet" onclick="event.stopPropagation()">
     <div class="sheet-handle"></div>
     <div id="emp-body"></div>
+  </div>
+</div>
+
+<!-- HOOKAH ORDER SHEET -->
+<div class="overlay" id="hookah-ov" onclick="closeSheet('hookah-ov')">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Создать кальян</div>
+    <div class="sheet-sub">Вкус вводится вручную, без процентного конструктора.</div>
+    <div class="admin-grid">
+      <input class="admin-input" id="hookah-zone" placeholder="Зона, например Duo 1">
+      <input class="admin-input" id="hookah-table" placeholder="Место / ПК / стол">
+    </div>
+    <input class="admin-input" id="hookah-flavor" placeholder="Вкус или микс" style="margin-top:8px">
+    <select class="admin-select" id="hookah-employee" style="margin-top:8px"></select>
+    <button class="sheet-btn primary" onclick="createHookahOrder()">Создать кальян</button>
+  </div>
+</div>
+
+<!-- FOOD ORDER SHEET -->
+<div class="overlay" id="food-ov" onclick="closeSheet('food-ov')">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Заказ еды</div>
+    <div class="sheet-sub">После таймера сотрудник получит личное напоминание вынести заказ.</div>
+    <select class="admin-select" id="food-item-select"></select>
+    <div class="admin-grid" style="margin-top:8px">
+      <input class="admin-input" id="food-table" placeholder="Место / ПК / стол">
+      <select class="admin-select" id="food-employee"></select>
+    </div>
+    <button class="sheet-btn primary" onclick="createFoodOrder()">Создать заказ еды</button>
   </div>
 </div>
 
@@ -270,6 +326,7 @@ function nav(btn) {
   if (page === 'dashboard') loadDash();
   if (page === 'club')       loadClub();
   if (page === 'service')    loadService();
+  if (page === 'memo')       loadMemo();
   if (page === 'finance' && !loaded.fin) loadFin();
 }
 
@@ -411,8 +468,13 @@ function renderPcCard(pc) {
 
 async function loadService() {
   await loadMe();
-  loadOrders();
+  await Promise.all([loadOrders(), loadFoodOrders(), loadFoodItems()]);
+}
+
+async function loadMemo() {
+  await loadMe();
   if (!loaded.tob) loadTob();
+  loadMixes();
 }
 
 async function loadMe() {
@@ -424,6 +486,102 @@ async function loadMe() {
   }
   loaded.me = true;
   return currentUser;
+}
+
+async function loadEmployeesForSelect(selectId) {
+  const d = await req('/api/employees');
+  const el = $(selectId);
+  el.innerHTML = d.employees.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+}
+
+async function openHookahSheet() {
+  await loadEmployeesForSelect('hookah-employee');
+  openSheet('hookah-ov');
+}
+
+async function createHookahOrder() {
+  const zone = $('hookah-zone').value.trim();
+  const table = $('hookah-table').value.trim();
+  const flavor = $('hookah-flavor').value.trim();
+  const employee_id = Number($('hookah-employee').value);
+  if (!zone || !table || !flavor || !employee_id) { alert('Заполните зону, место, вкус и сотрудника'); return; }
+  try {
+    await send('/api/orders', 'POST', { zone, table_number: table, flavor, employee_id });
+    closeSheet('hookah-ov');
+    $('hookah-zone').value = ''; $('hookah-table').value = ''; $('hookah-flavor').value = '';
+    loaded.dash = false;
+    loadOrders();
+  } catch { alert('Не удалось создать кальян'); }
+}
+
+let foodItems = [];
+async function loadFoodItems() {
+  try {
+    const d = await req('/api/food/items');
+    foodItems = d.items || [];
+    renderFoodAdmin();
+  } catch { foodItems = []; }
+}
+
+async function loadFoodOrders() {
+  const l = $('food-l'), c = $('food-c');
+  if (!l || !c) return;
+  l.style.display = 'flex'; c.style.display = 'none';
+  try {
+    const d = await req('/api/food/orders?status=active');
+    renderFoodOrders(d.orders || []);
+  } catch {
+    l.innerHTML = '<div class="state-card">Заказы еды загрузятся после открытия внутри Telegram WebApp.</div>';
+  }
+}
+
+function renderFoodOrders(orders) {
+  $('food-l').style.display = 'none'; $('food-c').style.display = 'block';
+  if (!orders.length) { $('food-c').innerHTML = '<div class="empty"><div class="empty-txt">Активных заказов еды нет</div></div>'; return; }
+  $('food-c').innerHTML = orders.map(o => `<div class="oc">
+    <div class="oc-accent"></div><div class="oc-body">
+      <div class="oc-top"><div><div class="oc-zone">${o.item_name}</div><div class="oc-id">#${o.id} · место ${o.table_number}</div></div><button class="btn-close" onclick="closeFoodOrder(${o.id})">Выдано</button></div>
+      <div class="oc-flavor">Готовность: ${o.ready_at?.slice(11,16) || '—'} · ${o.cook_minutes} мин</div>
+      <div class="oc-footer"><div class="oc-emp">${o.employee_name || 'Не назначен'}</div><div class="oc-time">${o.created_at?.slice(11,16) || ''}</div></div>
+    </div></div>`).join('');
+}
+
+function renderFoodAdmin() {
+  const root = $('food-admin');
+  if (!root) return;
+  const list = foodItems.map(i => `<div class="tob-item"><span>${i.name} · ${i.cook_minutes} мин · ${money(i.price)}</span>${currentUser.is_admin ? `<button class="mini-danger" onclick="deleteFoodItem(${i.id})">Удалить</button>` : ''}</div>`).join('');
+  root.innerHTML = `<div class="sh">Меню еды</div>${currentUser.is_admin ? `<div class="admin-panel"><div class="card-title" style="margin-bottom:2px;color:#fff">Добавить позицию еды</div><input class="admin-input" id="food-new-name" placeholder="Название"><div class="admin-grid"><input class="admin-input" id="food-new-price" type="number" min="0" placeholder="Цена"><input class="admin-input" id="food-new-min" type="number" min="1" placeholder="Таймер, мин"></div><button class="admin-btn" onclick="addFoodItem()">Добавить позицию</button></div>` : ''}<div class="tob-cat"><div class="tob-list" style="display:block">${list || '<div class="empty"><div class="empty-txt">Позиции еды пока не добавлены</div></div>'}</div></div>`;
+}
+
+async function addFoodItem() {
+  const name = $('food-new-name').value.trim();
+  const price = Number($('food-new-price').value || 0);
+  const cook_minutes = Number($('food-new-min').value || 10);
+  if (!name) { alert('Введите название позиции'); return; }
+  try { await send('/api/food/items', 'POST', { name, price, cook_minutes }); await loadFoodItems(); } catch { alert('Добавлять еду может только администратор'); }
+}
+
+async function deleteFoodItem(id) {
+  if (!confirm('Удалить позицию еды?')) return;
+  try { await send(`/api/food/items/${id}`, 'DELETE'); await loadFoodItems(); } catch { alert('Удалять еду может только администратор'); }
+}
+
+async function openFoodSheet() {
+  await Promise.all([loadFoodItems(), loadEmployeesForSelect('food-employee')]);
+  $('food-item-select').innerHTML = foodItems.map(i => `<option value="${i.id}">${i.name} · ${i.cook_minutes} мин</option>`).join('');
+  openSheet('food-ov');
+}
+
+async function createFoodOrder() {
+  const item_id = Number($('food-item-select').value);
+  const table_number = $('food-table').value.trim();
+  const employee_id = Number($('food-employee').value);
+  if (!item_id || !table_number || !employee_id) { alert('Выберите позицию, место и сотрудника'); return; }
+  try { await send('/api/food/orders', 'POST', { item_id, table_number, employee_id }); closeSheet('food-ov'); $('food-table').value = ''; loadFoodOrders(); } catch { alert('Не удалось создать заказ еды'); }
+}
+
+async function closeFoodOrder(id) {
+  try { await send(`/api/food/orders/${id}/close`, 'PATCH'); loadFoodOrders(); } catch { alert('Не удалось закрыть заказ'); }
 }
 
 // ── DASHBOARD ────────────────────────────────────────────────────
@@ -878,7 +1036,7 @@ async function loadTob() {
     const d = await req('/api/tobacco');
     renderTob(d);
   } catch {
-    $('tob-l').innerHTML = '<div class="state-card">Склад табаков загрузится после авторизации WebApp. Раздел уже объединён с кальянами для единого сервисного сценария.</div>';
+    $('tob-l').innerHTML = '<div class="state-card">Памятка по табакам загрузится после авторизации WebApp внутри Telegram.</div>';
   }
 }
 
@@ -977,6 +1135,39 @@ async function deleteTobaccoItem(event, id) {
   } catch {
     alert('Удалять позиции может только администратор');
   }
+}
+
+
+async function loadMixes() {
+  const l = $('mix-l'), c = $('mix-c');
+  if (!l || !c) return;
+  l.style.display = 'flex'; c.style.display = 'none';
+  try {
+    const d = await req('/api/mixes');
+    renderMixes(d.mixes || []);
+  } catch {
+    l.innerHTML = '<div class="state-card">Миксы загрузятся после авторизации WebApp.</div>';
+  }
+}
+
+function renderMixes(mixes) {
+  $('mix-l').style.display = 'none'; $('mix-c').style.display = 'block';
+  const admin = currentUser.is_admin ? '<div class="admin-panel"><div class="card-title" style="margin-bottom:2px;color:#fff">Добавить проверенный микс</div><input class="admin-input" id="mix-new-name" placeholder="Название микса"><input class="admin-input" id="mix-new-recipe" placeholder="Рецепт, например: Cola 40% / Lemon 30% / Mint 30%" style="margin-top:8px"><input class="admin-input" id="mix-new-note" placeholder="Комментарий" style="margin-top:8px"><button class="admin-btn" onclick="addMix()">Добавить микс</button></div>' : '';
+  const list = mixes.map(m => `<div class="top-card"><div class="top-title">${m.name}</div><div class="oc-flavor">${m.recipe}</div>${m.note ? `<div class="pc-comment">${m.note}</div>` : ''}${currentUser.is_admin ? `<button class="mini-danger" onclick="deleteMix(${m.id})">Удалить</button>` : ''}</div>`).join('') || '<div class="empty"><div class="empty-txt">Проверенные миксы пока не добавлены</div></div>';
+  $('mix-c').innerHTML = admin + list;
+}
+
+async function addMix() {
+  const name = $('mix-new-name').value.trim();
+  const recipe = $('mix-new-recipe').value.trim();
+  const note = $('mix-new-note').value.trim();
+  if (!name || !recipe) { alert('Введите название и рецепт микса'); return; }
+  try { await send('/api/mixes', 'POST', { name, recipe, note }); loadMixes(); } catch { alert('Добавлять миксы может только администратор'); }
+}
+
+async function deleteMix(id) {
+  if (!confirm('Удалить микс?')) return;
+  try { await send(`/api/mixes/${id}`, 'DELETE'); loadMixes(); } catch { alert('Удалять миксы может только администратор'); }
 }
 
 function togCat(el) {
