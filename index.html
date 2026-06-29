@@ -254,27 +254,16 @@ const PC_STATUS = {
   issue:    { label:'Проблема', cls:'pc-issue' },
 };
 
-const CLUB_PCS = [
-  { id:'PC-01', zone:'VIP', status:'busy', client:'Артём', left:'01:18', order:'Кола, бургер', note:'Продлить на 1 час после уведомления' },
-  { id:'PC-02', zone:'VIP', status:'reserved', client:'Илья', left:'20:30', order:'Ожидает гостя', note:'Бронь на вечерний слот' },
-  { id:'PC-03', zone:'VIP', status:'free', client:'—', left:'—', order:'Готов к посадке', note:'Место убрано' },
-  { id:'PC-04', zone:'Bootcamp', status:'busy', client:'Команда 1', left:'00:12', order:'2 энергетика', note:'Скоро завершение времени' },
-  { id:'PC-05', zone:'Bootcamp', status:'busy', client:'Даниил', left:'02:05', order:'Кальян в работе', note:'Проверить угли через 15 минут' },
-  { id:'PC-06', zone:'Bootcamp', status:'free', client:'—', left:'—', order:'Свободен', note:'Можно посадить без ожидания' },
-  { id:'PC-07', zone:'Стандарт', status:'free', client:'—', left:'—', order:'Свободен', note:'Можно посадить без ожидания' },
-  { id:'PC-08', zone:'Стандарт', status:'reserved', client:'Максим', left:'21:00', order:'Бронь + напитки', note:'Подготовить место заранее' },
-];
-
 function fallbackClubData() {
   return {
-    source: 'demo',
+    source: 'unavailable',
     updated_at: null,
-    seats: CLUB_PCS,
+    seats: [],
     counts: null,
   };
 }
 
-// ── HELPERS ──────────────────────────────────────────────────────
+// Helpers
 const $ = id => document.getElementById(id);
 
 function money(v) {
@@ -366,13 +355,14 @@ function pcCounts() {
 }
 
 function renderOpsSummary() {
+  const data = getClubData();
+  if (data.source !== 'langame' || !getClubSeats().length) return '';
   const c = pcCounts();
-  return `<div class="sh">Состояние клуба</div>
+  return `<div class="sh">\u0421\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u043a\u043b\u0443\u0431\u0430</div>
   <div class="ops-grid">
-    <div class="ops-card"><div class="ops-label">Свободные места</div><div class="ops-value" style="color:var(--green)">${c.free || 0}</div><div class="ops-note">Можно быстро посадить гостя.</div></div>
-    <div class="ops-card"><div class="ops-label">Занято сейчас</div><div class="ops-value">${c.busy || 0}</div><div class="ops-note">Данные синхронизируются с Langame.</div></div>
-    <div class="ops-card"><div class="ops-label">Брони сегодня</div><div class="ops-value" style="color:var(--blue)">${c.reserved || 0}</div><div class="ops-note">Проверь подготовку мест.</div></div>
-    <div class="ops-card"><div class="ops-label">Всего мест</div><div class="ops-value" style="color:var(--muted2)">${c.total || 0}</div><div class="ops-note">ПК, PlayStation и VIP-зоны.</div></div>
+    <div class="ops-card"><div class="ops-label">\u0421\u0432\u043e\u0431\u043e\u0434\u043d\u044b\u0435 \u043c\u0435\u0441\u0442\u0430</div><div class="ops-value" style="color:var(--green)">${c.free || 0}</div><div class="ops-note">\u0422\u043e\u043b\u044c\u043a\u043e \u043f\u043e \u0434\u0430\u043d\u043d\u044b\u043c Langame.</div></div>
+    <div class="ops-card"><div class="ops-label">\u0417\u0430\u043d\u044f\u0442\u043e \u0441\u0435\u0439\u0447\u0430\u0441</div><div class="ops-value">${c.busy || 0}</div><div class="ops-note">\u0422\u043e\u043b\u044c\u043a\u043e \u043f\u043e \u0434\u0430\u043d\u043d\u044b\u043c Langame.</div></div>
+    <div class="ops-card"><div class="ops-label">\u0412\u0441\u0435\u0433\u043e \u043c\u0435\u0441\u0442</div><div class="ops-value" style="color:var(--muted2)">${c.total || 0}</div><div class="ops-note">\u041f\u041a \u0438 \u043a\u043e\u043d\u0441\u043e\u043b\u0438 \u0438\u0437 \u0441\u0445\u0435\u043c\u044b Langame.</div></div>
   </div>`;
 }
 
@@ -412,7 +402,7 @@ function renderClub() {
   });
   const filterBtn = (key, label) => `<button class="filter-btn ${pcFilter===key?'active':''}" onclick="setPcFilter('${key}')">${label}</button>`;
   root.innerHTML = `
-    ${data.offline ? '<div class="state-card">Не удалось получить живую занятость Langame в этом режиме. Показываю резервную схему, а в Telegram WebApp данные обновятся через сервер.</div>' : ''}
+    ${data.offline ? '<div class="state-card">\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u043f\u043e\u043b\u0443\u0447\u0438\u0442\u044c \u0436\u0438\u0432\u0443\u044e \u0437\u0430\u043d\u044f\u0442\u043e\u0441\u0442\u044c Langame. \u0414\u0435\u043c\u043e-\u0446\u0438\u0444\u0440\u044b \u0441\u043a\u0440\u044b\u0442\u044b, \u0447\u0442\u043e\u0431\u044b \u043d\u0435 \u043f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0442\u044c \u043d\u0435\u0430\u043a\u0442\u0443\u0430\u043b\u044c\u043d\u044b\u0435 \u0434\u0430\u043d\u043d\u044b\u0435.</div>' : ''}
     ${data.source === 'langame' ? `<div class="state-card">Живая занятость Langame · ${data.domain || 'rave4-200.langame.ru'} · обновлено ${formatClubTime(data.updated_at)}</div>` : ''}
     ${renderOpsSummary()}
     ${renderClubMap(seatsAll)}
@@ -425,9 +415,7 @@ function renderClub() {
     <div class="filter-row">
       ${filterBtn('all','Все')}
       ${filterBtn('free','Свободны')}
-      ${filterBtn('busy','Заняты')}
-      ${filterBtn('reserved','Бронь')}
-    </div>
+      ${filterBtn('busy','Заняты')}    </div>
     <div class="pc-grid">
       ${pcs.map(renderPcCard).join('') || '<div class="empty"><div class="empty-txt">По этому запросу ничего не найдено</div></div>'}
     </div>
@@ -675,7 +663,7 @@ function renderDash(d) {
     </div>`;
   }
 
-  $('dash-c').innerHTML = apiNotice + shiftBar + renderOpsSummary() + stats + monthBlock + lastBlock + renderActiveClients();
+  $('dash-c').innerHTML = apiNotice + shiftBar + stats + monthBlock + lastBlock;
 }
 
 // ── ORDERS ───────────────────────────────────────────────────────
